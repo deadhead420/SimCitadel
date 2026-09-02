@@ -1,0 +1,64 @@
+name: Build FreeSO
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: nuget/setup-nuget@v2
+
+    - name: Run Protobuild
+      shell: pwsh
+      run: |
+        cd ./Other/libs/FSOMonoGame/
+        ./protobuild.exe --generate
+        cd ../../../
+      continue-on-error: true
+
+    - name: Restore Roslyn Core
+      shell: pwsh
+      run: |
+        cd ./TSOClient/FSO.SimAntics.JIT.Roslyn/
+        dotnet restore
+        cd ../../
+      continue-on-error: true
+
+    - name: Restore Solution NuGet Packages
+      run: nuget restore ./TSOClient/FreeSO.sln
+
+    - name: Build Client
+      run: |
+        msbuild ./TSOClient/FreeSO.sln /t:FSO_IDE /p:Configuration=Release /p:Platform="Any CPU" /p:OutDir="${{ github.workspace }}/artifacts/client/"
+
+    - name: Build Server
+      run: |
+        msbuild ./TSOClient/FreeSO.sln /t:FSO_Server_Core:Publish /p:Configuration=Release /p:Platform="Any CPU" /p:OutDir="${{ github.workspace }}/artifacts/server/"
+
+    - name: Upload Client Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FreeSOClient
+        path: ${{ github.workspace }}/artifacts/client/
+
+    - name: Upload Server Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FreeSOServer
+        path: ${{ github.workspace }}/artifacts/server/

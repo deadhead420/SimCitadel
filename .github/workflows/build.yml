@@ -51,18 +51,10 @@ jobs:
         ./protobuild.exe --generate
         cd ../../../
 
-    - name: Restore Roslyn Core
-      shell: pwsh
-      run: |
-        cd ./TSOClient/FSO.SimAntics.JIT.Roslyn/
-        dotnet restore
-        cd ../../
-
     - name: Restore Project NuGet Packages
-      shell: pwsh
       run: |
-        dotnet restore ./TSOClient/FSO.IDE/FSO.IDE.csproj
-        dotnet restore ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj
+        nuget restore ./TSOClient/FSO.IDE/FSO.IDE.csproj -NonInteractive
+        nuget restore ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj -NonInteractive
 
     - name: Build Submodules & Core Dependencies
       run: |

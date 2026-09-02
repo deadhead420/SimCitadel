@@ -51,10 +51,15 @@ jobs:
         ./protobuild.exe --generate
         cd ../../../
 
-    - name: Restore Project NuGet Packages
+    - name: Restore Roslyn SDK Project
+      run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
+
+    - name: Restore All Legacy NuGet Packages
+      shell: pwsh
       run: |
-        nuget restore ./TSOClient/FSO.IDE/FSO.IDE.csproj -NonInteractive
-        nuget restore ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj -NonInteractive
+        Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
+          nuget restore $_.FullName -NonInteractive
+        }
 
     - name: Build Submodules & Core Dependencies
       run: |
@@ -63,11 +68,11 @@ jobs:
 
     - name: Build Client Project
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Build Server Project
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Stage Artifacts
       shell: pwsh

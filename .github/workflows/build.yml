@@ -7,6 +7,9 @@ on:
     branches: [ master, main ]
   workflow_dispatch:
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   build:
     runs-on: windows-2022
@@ -18,17 +21,27 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Inject .NET 4.5 Target Pack Override
+    - name: Force Install .NET 4.5 Reference Assemblies Globally
       shell: pwsh
       run: |
-        $targets = @"
-        <Project>
-          <ItemGroup>
-            <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net45" Version="1.0.3" PrivateAssets="All" />
-          </ItemGroup>
-        </Project>
-        "@
-        Set-Content -Path "Directory.Build.targets" -Value $targets
+        $nugetUrl = "https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies.net45/1.0.3"
+        $zipPath = "$env:TEMP\net45.zip"
+        $extractPath = "$env:TEMP\net45_extracted"
+
+        # Download and extract NuGet package
+        Invoke-WebRequest -Uri $nugetUrl -OutFile $zipPath
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+        # Target paths where MSBuild looks on 64-bit Windows Server 2022
+        $targetPaths = @(
+          "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5",
+          "C:\Program Files\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5"
+        )
+
+        foreach ($target in $targetPaths) {
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Copy-Item -Path "$extractPath\build\.NETFramework\v4.5\*" -Destination $target -Recurse -Force
+        }
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2

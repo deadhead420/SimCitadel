@@ -18,10 +18,13 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Install .NET Framework 4.5 Targeting Pack
+    - name: Install .NET 4.5 Reference Assemblies
       shell: pwsh
       run: |
-        choco install netfx-4.5-devpack -y --no-progress
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net45 -Version 1.0.3 -OutputDirectory ${{ runner.temp }}\ref_assemblies
+        $targetDir = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5"
+        New-Item -ItemType Directory -Force -Path $targetDir
+        Copy-Item -Path "${{ runner.temp }}\ref_assemblies\Microsoft.NETFramework.ReferenceAssemblies.net45.1.0.3\build\.NETFramework\v4.5\*" -Destination $targetDir -Recurse -Force
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2

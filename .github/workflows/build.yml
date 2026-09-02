@@ -63,13 +63,22 @@ jobs:
     - name: Restore Solution NuGet Packages
       run: nuget restore ./TSOClient/FreeSO.sln
 
-    - name: Build Client
+    - name: Build Client & Server
       run: |
-        msbuild ./TSOClient/FreeSO.sln /t:FSO_IDE /p:Configuration=Release /p:Platform="Any CPU" /p:OutDir="${{ github.workspace }}/artifacts/client/"
+        msbuild ./TSOClient/FreeSO.sln /p:Configuration=Release /p:Platform="Any CPU"
 
-    - name: Build Server
+    - name: Stage Artifacts
+      shell: pwsh
       run: |
-        msbuild ./TSOClient/FreeSO.sln /t:FSO_Server_Core:Publish /p:Configuration=Release /p:Platform="Any CPU" /p:OutDir="${{ github.workspace }}/artifacts/server/"
+        New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/client"
+        New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/server"
+
+        if (Test-Path "./TSOClient/FSO.IDE/bin/Release") {
+          Copy-Item -Path "./TSOClient/FSO.IDE/bin/Release/*" -Destination "${{ github.workspace }}/artifacts/client/" -Recurse -Force
+        }
+        if (Test-Path "./TSOClient/FSO.Server.Core/bin/Release") {
+          Copy-Item -Path "./TSOClient/FSO.Server.Core/bin/Release/*" -Destination "${{ github.workspace }}/artifacts/server/" -Recurse -Force
+        }
 
     - name: Upload Client Artifacts
       uses: actions/upload-artifact@v4

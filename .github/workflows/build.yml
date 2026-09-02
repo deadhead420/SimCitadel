@@ -63,9 +63,13 @@ jobs:
     - name: Restore Solution NuGet Packages
       run: nuget restore ./TSOClient/FreeSO.sln
 
-    - name: Build Client & Server
+    - name: Build Client Target
       run: |
-        msbuild ./TSOClient/FreeSO.sln /p:Configuration=Release /p:Platform="Any CPU"
+        msbuild ./TSOClient/FreeSO.sln /t:FSO_IDE /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: Build Server Target
+      run: |
+        msbuild ./TSOClient/FreeSO.sln /t:FSO_Server_Core /p:Configuration=Release /p:Platform="Any CPU"
 
     - name: Stage Artifacts
       shell: pwsh

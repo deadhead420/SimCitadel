@@ -44,13 +44,12 @@ jobs:
         Copy-Item -Path "$net45Path\*" -Destination "$sysDir\v4.5\" -Recurse -Force
         Copy-Item -Path "$net461Path\*" -Destination "$sysDir\v4.6.1\" -Recurse -Force
 
-    - name: Run Protobuild
+    - name: Generate MonoGame Projects via Protobuild
       shell: pwsh
       run: |
         cd ./Other/libs/FSOMonoGame/
         ./protobuild.exe --generate
         cd ../../../
-      continue-on-error: true
 
     - name: Restore Roslyn Core
       shell: pwsh
@@ -58,18 +57,25 @@ jobs:
         cd ./TSOClient/FSO.SimAntics.JIT.Roslyn/
         dotnet restore
         cd ../../
-      continue-on-error: true
 
-    - name: Restore Solution NuGet Packages
-      run: nuget restore ./TSOClient/FreeSO.sln
-
-    - name: Build Client Target
+    - name: Restore Project NuGet Packages
+      shell: pwsh
       run: |
-        msbuild ./TSOClient/FreeSO.sln /t:FSO_IDE /p:Configuration=Release /p:Platform="Any CPU"
+        dotnet restore ./TSOClient/FSO.IDE/FSO.IDE.csproj
+        dotnet restore ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj
 
-    - name: Build Server Target
+    - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./TSOClient/FreeSO.sln /t:FSO_Server_Core /p:Configuration=Release /p:Platform="Any CPU"
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+
+    - name: Build Client Project
+      run: |
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+
+    - name: Build Server Project
+      run: |
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Stage Artifacts
       shell: pwsh

@@ -27,6 +27,16 @@ jobs:
     - name: Setup NuGet
       uses: nuget/setup-nuget@v2
 
+    - name: Cache Global NuGet Packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.nuget/packages
+          ${{ github.workspace }}/TSOClient/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.config', '**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
     - name: Provision Legacy Reference Assemblies
       shell: pwsh
       run: |
@@ -57,9 +67,7 @@ jobs:
     - name: Restore All Legacy NuGet Packages
       shell: pwsh
       run: |
-        Get-ChildItem -Path . -Recurse -Filter *.csproj | Where-Object { 
-          $_.FullName -notmatch '\\(bin|obj|node_modules|packages)\\' 
-        } | ForEach-Object {
+        Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
           nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive
         }
       continue-on-error: true

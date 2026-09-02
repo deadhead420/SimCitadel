@@ -21,15 +21,28 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Install .NET Framework Developer Packs via Chocolatey
-      run: |
-        choco install netfx-4.5-devpack netfx-4.6.1-devpack -y
-
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
     - name: Setup NuGet
       uses: nuget/setup-nuget@v2
+
+    - name: Provision Legacy Reference Assemblies
+      shell: pwsh
+      run: |
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net45 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net461 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
+        
+        $net45Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net45.1.0.3\build\.NETFramework\v4.5"
+        $net461Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net461.1.0.3\build\.NETFramework\v4.6.1"
+        
+        $sysDir = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework"
+        
+        New-Item -ItemType Directory -Force -Path "$sysDir\v4.5"
+        New-Item -ItemType Directory -Force -Path "$sysDir\v4.6.1"
+        
+        Copy-Item -Path "$net45Path\*" -Destination "$sysDir\v4.5\" -Recurse -Force
+        Copy-Item -Path "$net461Path\*" -Destination "$sysDir\v4.6.1\" -Recurse -Force
 
     - name: Run Protobuild
       shell: pwsh

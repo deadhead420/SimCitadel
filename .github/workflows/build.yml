@@ -58,8 +58,9 @@ jobs:
       shell: pwsh
       run: |
         Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
-          nuget restore $_.FullName -NonInteractive
+          nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive
         }
+      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |

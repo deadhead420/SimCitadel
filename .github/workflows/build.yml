@@ -21,30 +21,9 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Global Setup Legacy .NET Reference Assemblies
-      shell: pwsh
+    - name: Install .NET Framework Developer Packs via Chocolatey
       run: |
-        $nugetUrl = "https://www.nuget.org/api/v2/package/Microsoft.NETFramework.ReferenceAssemblies/1.0.3"
-        $zipPath = "$env:TEMP\net_ref.zip"
-        $extractPath = "$env:TEMP\net_ref_extracted"
-
-        Invoke-WebRequest -Uri $nugetUrl -OutFile $zipPath
-        Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-
-        # Extract nested packages for all .NET 4.x targets (4.5, 4.6.1, etc.)
-        Get-ChildItem -Path "$extractPath\build" -Filter "*.nupkg" -Recurse | ForEach-Object {
-          Expand-Archive -Path $_.FullName -DestinationPath "$extractPath\unpacked" -Force
-        }
-
-        $targetPaths = @(
-          "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework",
-          "C:\Program Files\Reference Assemblies\Microsoft\Framework\.NETFramework"
-        )
-
-        foreach ($target in $targetPaths) {
-          New-Item -ItemType Directory -Force -Path $target | Out-Null
-          Copy-Item -Path "$extractPath\unpacked\build\.NETFramework\*" -Destination $target -Recurse -Force
-        }
+        choco install netfx-4.5-devpack netfx-4.6.1-devpack -y
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2

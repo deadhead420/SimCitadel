@@ -21,30 +21,18 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Enable Long Paths
-      shell: pwsh
-      run: |
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
-
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
     - name: Setup NuGet
       uses: nuget/setup-nuget@v2
 
-    - name: Cache NuGet Packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.config', '**/*.csproj') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-
     - name: Provision Legacy Reference Assemblies
       shell: pwsh
       run: |
         nuget install Microsoft.NETFramework.ReferenceAssemblies.net45 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
-        nuget install Microsoft.NETFramework.ReferenceAssemblies.net461 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"        
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net461 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
+        
         $net45Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net45.1.0.3\build\.NETFramework\v4.5"
         $net461Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net461.1.0.3\build\.NETFramework\v4.6.1"
         
@@ -69,31 +57,30 @@ jobs:
     - name: Restore All Legacy NuGet Packages
       shell: pwsh
       run: |
-        if (Test-Path "./TSOClient/TSOClient.sln") {
-          nuget restore ./TSOClient/TSOClient.sln -NonInteractive
-        } else {
-          nuget restore ./TSOClient/FSO.IDE/FSO.IDE.csproj -SolutionDirectory ./TSOClient -NonInteractive
-          nuget restore ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj -SolutionDirectory ./TSOClient -NonInteractive
+        Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
+          nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive
         }
+      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /v:m
-        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /v:m
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Build Client Project
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /p:BuildInParallel=false /v:m
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Build Server Project
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /p:BuildInParallel=false /v:m
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Stage Artifacts
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/client"
         New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/server"
+
         if (Test-Path "./TSOClient/FSO.IDE/bin/Release") {
           Copy-Item -Path "./TSOClient/FSO.IDE/bin/Release/*" -Destination "${{ github.workspace }}/artifacts/client/" -Recurse -Force
         }

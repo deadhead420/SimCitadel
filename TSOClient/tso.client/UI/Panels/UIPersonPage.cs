@@ -1133,7 +1133,7 @@ namespace FSO.Client.UI.Panels
                 Buttons = new UIAlertButton[] {
                         new UIAlertButton(UIAlertButtonType.Yes, (btn) => {
                             if (CurrentAvatar.Value != null) {
-                                FindController<PersonPageController>().ChangeRoommate(ChangeRoommateType.KICK, CurrentAvatar.Value.Avatar_Id, PlayerAccount.Client.LotLocation);
+                                FindController<PersonPageController>().ChangeRoommate(ChangeRoommateType.KICK, CurrentAvatar.Value.Avatar_Id, GameFacade.Controller.City.LotLocation);
                             }
                             UIScreen.RemoveDialog(alert);
                             }),
@@ -1152,7 +1152,7 @@ namespace FSO.Client.UI.Panels
                 Buttons = new UIAlertButton[] {
                         new UIAlertButton(UIAlertButtonType.Yes, (btn) => {
                             if (CurrentAvatar.Value != null) {
-                                FindController<PersonPageController>().ChangeRoommate(ChangeRoommateType.INVITE, CurrentAvatar.Value.Avatar_Id, PlayerAccount.Client.LotLocation);
+                                FindController<PersonPageController>().ChangeRoommate(ChangeRoommateType.INVITE, CurrentAvatar.Value.Avatar_Id, GameFacade.Controller.City.LotLocation);
                             }
                             UIScreen.RemoveDialog(alert);
                             }),

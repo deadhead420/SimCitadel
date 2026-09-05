@@ -1243,7 +1243,7 @@ namespace FSO.Server.Servers.Lot.Domain
                             .Where(x => !untradableGUIDs.Contains(x.type));
 
                         totalCount += objects.Count();
-                        totalValue += objects.Sum(x => x.value);
+                        totalValue += (int)objects.Sum(x => (long)x.value);
                     }
 
                     p(primaryLotId, totalCount, totalValue, primaryLotName);

@@ -167,7 +167,9 @@ namespace FSO.Server.Servers.City.Handlers
 //                                Status(session, ChangeRoommateResponseStatus.ROOMIE_ELSEWHERE); //request already pending or otherwise
 //                                return;
 //                            }
-                            var lotr = myLots.FirstOrDefault();
+			    // Match the specific lot where the invite action is happening
+			    var activeLotId = session.CurrentLotId; // or packet.LotId
+			    var lotr = myLots.FirstOrDefault(x => x.lot_id == activeLotId);
                             DbLot lot = null;
                             if (lotr != null) lot = da.Lots.Get(lotr.lot_id);
                             if (lotr == null || lot == null)

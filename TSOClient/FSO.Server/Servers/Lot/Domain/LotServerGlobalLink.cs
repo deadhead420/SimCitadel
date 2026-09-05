@@ -1219,18 +1219,34 @@ namespace FSO.Server.Servers.Lot.Domain
             });
         }
 
-        public void FindLotAndValue(VM vm, uint persistID, List<uint> untradableGUIDs, VMAsyncFindLotCallback p)
+	public void FindLotAndValue(VM vm, uint persistID, List<uint> untradableGUIDs, VMAsyncFindLotCallback p)
         {
             Host.InBackground(() =>
             {
                 using (var db = DAFactory.Get())
                 {
-                    var lot = db.Lots.GetByOwner(persistID);
-                    if (lot == null) p(0, 0, 0, null);
+                    var lots = db.Lots.GetByOwner(persistID);
+                    if (lots == null || !lots.Any())
+                    {
+                        p(0, 0, 0, null);
+                        return;
+                    }
 
-                    var objects = db.Objects.GetByAvatarIdLot(persistID, (uint)lot.lot_id).Where(x => !untradableGUIDs.Contains(x.type));
+                    uint totalCount = 0;
+                    int totalValue = 0;
+                    uint primaryLotId = lots[0].lot_id;
+                    string primaryLotName = lots[0].name;
 
-                    p((uint)lot.lot_id, objects.Count(), objects.Sum(x => x.value), lot.name);
+                    foreach (var lot in lots)
+                    {
+                        var objects = db.Objects.GetByAvatarIdLot(persistID, (uint)lot.lot_id)
+                            .Where(x => !untradableGUIDs.Contains(x.type));
+
+                        totalCount += (uint)objects.Count();
+                        totalValue += objects.Sum(x => x.value);
+                    }
+
+                    p(primaryLotId, (int)totalCount, totalValue, primaryLotName);
                 }
             });
         }

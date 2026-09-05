@@ -149,7 +149,8 @@ namespace FSO.Server.Servers.City.Handlers
                     {
                         //verify that requester is definitely a roommate in the target lot
 
-                        var ownedLot = da.Lots.GetByOwner(session.AvatarId);
+                        var ownedLots = da.Lots.GetByOwner(session.AvatarId);
+                        var ownedLot = ownedLots.FirstOrDefault();
                         var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
 
                         if (packet.Type == ChangeRoommateType.INVITE)
@@ -161,11 +162,11 @@ namespace FSO.Server.Servers.City.Handlers
                                 Status(session, ChangeRoommateResponseStatus.UNKNOWN);
                             }
                             var targLots = da.Roommates.GetAvatarsLots(packet.AvatarId);
-                            if (targLots.Count > 0)
-                            {
-                                Status(session, ChangeRoommateResponseStatus.ROOMIE_ELSEWHERE); //request already pending or otherwise
-                                return;
-                            }
+//                            if (targLots.Count > 0)
+//                            {
+//                                Status(session, ChangeRoommateResponseStatus.ROOMIE_ELSEWHERE); //request already pending or otherwise
+//                                return;
+//                            }
                             var lotr = myLots.FirstOrDefault();
                             DbLot lot = null;
                             if (lotr != null) lot = da.Lots.Get(lotr.lot_id);

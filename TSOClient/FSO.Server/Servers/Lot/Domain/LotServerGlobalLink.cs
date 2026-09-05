@@ -1232,9 +1232,9 @@ namespace FSO.Server.Servers.Lot.Domain
                         return;
                     }
 
-                    uint totalCount = 0;
+                    int totalCount = 0;
                     int totalValue = 0;
-                    uint primaryLotId = lots[0].lot_id;
+                    uint primaryLotId = (uint)lots[0].lot_id;
                     string primaryLotName = lots[0].name;
 
                     foreach (var lot in lots)
@@ -1242,11 +1242,11 @@ namespace FSO.Server.Servers.Lot.Domain
                         var objects = db.Objects.GetByAvatarIdLot(persistID, (uint)lot.lot_id)
                             .Where(x => !untradableGUIDs.Contains(x.type));
 
-                        totalCount += (uint)objects.Count();
+                        totalCount += objects.Count();
                         totalValue += objects.Sum(x => x.value);
                     }
 
-                    p(primaryLotId, (int)totalCount, totalValue, primaryLotName);
+                    p(primaryLotId, totalCount, totalValue, primaryLotName);
                 }
             });
         }

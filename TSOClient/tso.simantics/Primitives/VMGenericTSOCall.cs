@@ -239,27 +239,25 @@ namespace FSO.SimAntics.Primitives
                 case VMGenericTSOCallMode.IsGlobalBroken: //36
                     return ((context.StackObject.MultitileGroup.BaseObject.TSOState as VMTSOObjectState)?.Broken == true)?VMPrimitiveExitCode.GOTO_TRUE:VMPrimitiveExitCode.GOTO_FALSE;
                 // 37. UNUSED
-                case VMGenericTSOCallMode.MayAddRoommate: //38
-                    // CONDITIONS, where stack object is desired roommate: (TODO: support extensions)
-                    // - Avatar we're asking must be resident of less lots than the maximum (currently 1)
-                    // - This lot must have less than (MAX_ROOMIES) roommates. (currently 8)
-                    // - Caller must be lot owner.
-                    // - This must not be a community lot.
-                    short result = 0;
-                    if (context.Caller is VMAvatar && context.Callee is VMAvatar)
-                    {
-                        var caller = (VMAvatar)context.Caller;
-                        var callee = (VMAvatar)context.Callee;
-                        if (caller.AvatarState.Permissions == VMTSOAvatarPermissions.Owner && !context.VM.TSOState.CommunityLot
-                            && context.VM.TSOState.Roommates.Count < 8
-                            && (((VMTSOAvatarState)callee.TSOState).Flags & VMTSOAvatarFlags.CanBeRoommate) > 0)
-                        {
-                            result = 2;
-                        }
-                    }
-                    context.Thread.TempRegisters[0] = result;
-                    // 2 is "true". not sure what 1 is. (interaction shows up, but fails on trying to run it. likely "guessed" state for client)
-                    return VMPrimitiveExitCode.GOTO_TRUE;
+		case VMGenericTSOCallMode.MayAddRoommate: //38
+		    short result = 0;
+		    if (context.Caller is VMAvatar && context.Callee is VMAvatar)
+		    {
+		        var caller = (VMAvatar)context.Caller;
+		        var callee = (VMAvatar)context.Callee;
+		        bool isAlreadyRoommateHere = context.VM.TSOState.Roommates.Contains(callee.PersistID);
+
+		        if (caller.AvatarState.Permissions == VMTSOAvatarPermissions.Owner
+        		    && !context.VM.TSOState.CommunityLot
+        		    && context.VM.TSOState.Roommates.Count < 8
+        		    && !isAlreadyRoommateHere
+        		    && (((VMTSOAvatarState)callee.TSOState).Flags & VMTSOAvatarFlags.CanBeRoommate) > 0)
+        		{
+        		    result = 2;
+        		}
+    		    }
+		    context.Thread.TempRegisters[0] = result;
+		    return VMPrimitiveExitCode.GOTO_TRUE;
                 case VMGenericTSOCallMode.ReturnLotCategory: //39
                     context.Thread.TempRegisters[0] = context.VM.TSOState.PropertyCategory;
                     return VMPrimitiveExitCode.GOTO_TRUE;

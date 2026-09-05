@@ -118,7 +118,7 @@ namespace FSO.Server.Servers.City.Handlers
                         }
                     }
 
-                    ownedLot = db.Lots.GetByOwner(session.AvatarId);
+                    ownedLot = null;
                 }
                 
                 if (ownedLot != null)

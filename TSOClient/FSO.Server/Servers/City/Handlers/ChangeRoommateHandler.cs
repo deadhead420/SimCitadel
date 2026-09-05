@@ -153,14 +153,14 @@ namespace FSO.Server.Servers.City.Handlers
                         var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
 
                         // Resolve target lot from packet location or owned lots
-                        var targetLot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
-                        uint targetLotId = targetLot?.lot_id ?? 0;
-                        var ownedLotIds = new HashSet<uint>(ownedLots.Select(l => l.lot_id));
+			var targetLot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
+			int targetLotId = targetLot?.lot_id ?? 0;
+			var ownedLotIds = new HashSet<int>(ownedLots.Select(l => l.lot_id));
 
-                        var lotr = myLots.FirstOrDefault(x =>
-                            (targetLotId != 0 && x.lot_id == targetLotId) ||
-                            ownedLotIds.Contains(x.lot_id)
-                        );
+			var lotr = myLots.FirstOrDefault(x =>
+			    (targetLotId != 0 && x.lot_id == targetLotId) ||
+			    ownedLotIds.Contains(x.lot_id)
+			);
 
                         if (packet.Type == ChangeRoommateType.INVITE)
                         {

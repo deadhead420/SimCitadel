@@ -1106,7 +1106,7 @@ namespace FSO.Client.UI.Panels
             IgnoreButton.Disabled = isMe;
 
             KickOutButton.Disabled = !(isMe || isMyPropertyOwner);
-            InviteButton.Disabled = !(isMyPropertyOwner) || hasProperty;
+            InviteButton.Disabled = !(isMyPropertyOwner);
             KickOutButton.Tooltip = GameFacade.Strings.GetString("189", (isMe) ? "95" : "33");
 
             if (isOptions)

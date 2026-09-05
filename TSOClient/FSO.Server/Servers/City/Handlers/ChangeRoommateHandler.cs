@@ -124,7 +124,7 @@ namespace FSO.Server.Servers.City.Handlers
                             }
 
                             var avatar = await DataService.Get<Avatar>(session.AvatarId);
-                            if (avatar != null) avatar.Avatar_LotGridXY = packet.LotLocation;
+                         //   if (avatar != null) avatar.Avatar_LotGridXY = packet.LotLocation;
                             da.Avatars.UpdateMoveDate(session.AvatarId, Epoch.Now);
                             Status(session, ChangeRoommateResponseStatus.ACCEPT_SUCCESS); return;
                         }

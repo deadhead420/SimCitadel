@@ -203,145 +203,121 @@ namespace FSO.Server.Servers.City.Handlers
                 }
                 else
                 {
-                    //we may still be roomie in a lot. If we are, we must be removed from that lot.
-/*                    if (!packet.MayorMode)
-                      {
-                          var myLots = db.Roommates.GetAvatarsLots(session.AvatarId);
-                          if (myLots.Count > 0)
-                          {
-                              if (myLots[0].permissions_level > 1)
-                              {
-                                  //owner should not be able to move out of a lot implicitly
-                                  session.Write(new PurchaseLotResponse()
-                                  {
-                                      Status = PurchaseLotStatus.FAILED,
-                                      Reason = PurchaseLotFailureReason.UNKNOWN
-                                  });
-                                  return;
-                              }
-                              var lot = db.Lots.Get(myLots[0].lot_id);
-                              if (lot != null)
-                              {
-                                  var kickResult = await Kernel.Get<ChangeRoommateHandler>().TryKick(lot.location, session.AvatarId, session.AvatarId);
-                                  if (kickResult != Protocol.Electron.Model.ChangeRoommateResponseStatus.SELFKICK_SUCCESS)
-                                  {
-                                      session.Write(new PurchaseLotResponse()
-                                      {
-                                          Status = PurchaseLotStatus.FAILED,
+                    // Allow multi-lot/multi-roommate purchasing without evicting or restricting
+                    /*
+                    if (!packet.MayorMode)
+                    {
+                        var myLots = db.Roommates.GetAvatarsLots(session.AvatarId);
+                        if (myLots.Count > 0)
+                        {
+                            if (myLots[0].permissions_level > 1)
+                            {
+                                session.Write(new PurchaseLotResponse()
+                                {
+                                    Status = PurchaseLotStatus.FAILED,
+                                    Reason = PurchaseLotFailureReason.UNKNOWN
+                                });
+                                return;
+                            }
+                            var lot = db.Lots.Get(myLots[0].lot_id);
+                            if (lot != null)
+                            {
+                                var kickResult = await Kernel.Get<ChangeRoommateHandler>().TryKick(lot.location, session.AvatarId, session.AvatarId);
+                                if (kickResult != Protocol.Electron.Model.ChangeRoommateResponseStatus.SELFKICK_SUCCESS)
+                                {
+                                    session.Write(new PurchaseLotResponse()
+                                    {
+                                        Status = PurchaseLotStatus.FAILED,
                                         Reason = PurchaseLotFailureReason.IN_LOT_CANT_EVICT
                                     });
                                     return;
                                 }
                             }
-                            /*
-                            //we can't be in the lot when this happens. Make sure city owns avatar.
-                            bool canEvict = session.AvatarClaimId != 0;
-                            if (!canEvict)
-                            {
-                                var claim = db.AvatarClaims.Get(session.AvatarClaimId);
-                                if (claim.owner == Context.Config.Call_Sign)
-                                {
-                                    db.Roommates.RemoveRoommate(session.AvatarId, myLots[0].lot_id);
-                                    canEvict = true;
-                                }
-                                else canEvict = false;
-                            }
-
-                            if (!canEvict)
-                            {
-                                session.Write(new PurchaseLotResponse()
-                                {
-                                    Status = PurchaseLotStatus.FAILED,
-                                    Reason = PurchaseLotFailureReason.IN_LOT_CANT_EVICT
-                                });
-                                return;
-                            }
-                            */
                         }
                     }
-
-                    var name = packet.Name;
-                    if (!GlobalRealestate.ValidateLotName(name))
-                    {
-                        session.Write(new PurchaseLotResponse()
-                        {
-                            Status = PurchaseLotStatus.FAILED,
-                            Reason = PurchaseLotFailureReason.NAME_VALIDATION_ERROR
-                        });
-                        return;
-                    }
-
-                    var transactionResult = db.Avatars.Transaction(session.AvatarId, uint.MaxValue, price, 5); //expenses misc... maybe add specific for lot
-                    resultFunds = transactionResult.source_budget;
-                    if (!transactionResult.success)
-                    {
-                        session.Write(new PurchaseLotResponse()
-                        {
-                            Status = PurchaseLotStatus.FAILED,
-                            Reason = PurchaseLotFailureReason.INSUFFICIENT_FUNDS,
-                            NewFunds = resultFunds
-                        });
-                        return;
-                    }
-
-                    try
-                    {
-                        lotId = db.Lots.Create(new DbLot
-                        {
-                            name = name,
-                            shard_id = Context.ShardId,
-
-                            location = packedLocation,
-                            owner_id = session.AvatarId,
-                            created_date = Epoch.Now,
-                            category_change_date = Epoch.Default,
-                            category = (packet.MayorMode) ? LotCategory.community : LotCategory.none,
-                            neighborhood_id = (uint)targNhood.neighborhood_id,
-
-                            buildable_area = 1,
-                            description = ""
-                        });
-
-                        DataService.Invalidate<FSO.Common.DataService.Model.Lot>(packedLocation);
-
-                        if (packet.MayorMode)
-                        {
-                            db.Neighborhoods.UpdateTownHall((uint)targNhood.neighborhood_id, lotId);
-                            if (nhoodDS != null) nhoodDS.Neighborhood_TownHallXY = packedLocation;
-                        }
-                        if (nhoodDS != null)
-                        {
-                            nhoodDS.Neighborhood_LotCount = (uint)db.Lots.GetLocationsInNhood(nhoodDS.Id).Count;
-                            nhoodDS.Neighborhood_AvatarCount = (uint)db.Avatars.GetLivingInNhood(nhoodDS.Id).Count;
-                            db.Avatars.UpdateMoveDate(session.AvatarId, Epoch.Now);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        var returnMoney = db.Avatars.Transaction(uint.MaxValue, session.AvatarId, price, 5); //refund
-                        //Name taken
-                        if (ex.Message == "NAME")
-                        {
-                            session.Write(new PurchaseLotResponse()
-                            {
-                                Status = PurchaseLotStatus.FAILED,
-                                Reason = PurchaseLotFailureReason.NAME_TAKEN, //TODO: this can also happen if the location was taken. (location is a UNIQUE row)
-                                NewFunds = returnMoney.dest_budget
-                            });
-                        }
-                        else
-                        {
-                            session.Write(new PurchaseLotResponse()
-                            {
-                                Status = PurchaseLotStatus.FAILED,
-                                Reason = PurchaseLotFailureReason.UNKNOWN, //likely already roommate somewhere else, or we got race condition'd by another roomie request
-                                NewFunds = returnMoney.dest_budget
-                            });
-                        }
-                        return;
-                    }
+                    */
                 }
 
+                var name = packet.Name;
+                if (!GlobalRealestate.ValidateLotName(name))
+                {
+                    session.Write(new PurchaseLotResponse()
+                    {
+                        Status = PurchaseLotStatus.FAILED,
+                        Reason = PurchaseLotFailureReason.NAME_VALIDATION_ERROR
+                    });
+                    return;
+                }
+
+                var transactionResult1 = db.Avatars.Transaction(session.AvatarId, uint.MaxValue, price, 5); //expenses misc... maybe add specific for lot
+                resultFunds = transactionResult1.source_budget;
+                if (!transactionResult1.success)
+                {
+                    session.Write(new PurchaseLotResponse()
+                    {
+                        Status = PurchaseLotStatus.FAILED,
+                        Reason = PurchaseLotFailureReason.INSUFFICIENT_FUNDS,
+                        NewFunds = resultFunds
+                    });
+                    return;
+                }
+
+                try
+                {
+                    lotId = db.Lots.Create(new DbLot
+                    {
+                        name = name,
+                        shard_id = Context.ShardId,
+
+                        location = packedLocation,
+                        owner_id = session.AvatarId,
+                        created_date = Epoch.Now,
+                        category_change_date = Epoch.Default,
+                        category = (packet.MayorMode) ? LotCategory.community : LotCategory.none,
+                        neighborhood_id = (uint)targNhood.neighborhood_id,
+
+                        buildable_area = 1,
+                        description = ""
+                    });
+
+                    DataService.Invalidate<FSO.Common.DataService.Model.Lot>(packedLocation);
+
+                    if (packet.MayorMode)
+                    {
+                        db.Neighborhoods.UpdateTownHall((uint)targNhood.neighborhood_id, lotId);
+                        if (nhoodDS != null) nhoodDS.Neighborhood_TownHallXY = packedLocation;
+                    }
+                    if (nhoodDS != null)
+                    {
+                        nhoodDS.Neighborhood_LotCount = (uint)db.Lots.GetLocationsInNhood(nhoodDS.Id).Count;
+                        nhoodDS.Neighborhood_AvatarCount = (uint)db.Avatars.GetLivingInNhood(nhoodDS.Id).Count;
+                        db.Avatars.UpdateMoveDate(session.AvatarId, Epoch.Now);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var returnMoney = db.Avatars.Transaction(uint.MaxValue, session.AvatarId, price, 5); //refund
+                    //Name taken
+                    if (ex.Message == "NAME")
+                    {
+                        session.Write(new PurchaseLotResponse()
+                        {
+                            Status = PurchaseLotStatus.FAILED,
+                            Reason = PurchaseLotFailureReason.NAME_TAKEN, //TODO: this can also happen if the location was taken. (location is a UNIQUE row)
+                            NewFunds = returnMoney.dest_budget
+                        });
+                    }
+                    else
+                    {
+                        session.Write(new PurchaseLotResponse()
+                        {
+                            Status = PurchaseLotStatus.FAILED,
+                            Reason = PurchaseLotFailureReason.UNKNOWN, //likely already roommate somewhere else, or we got race condition'd by another roomie request
+                            NewFunds = returnMoney.dest_budget
+                        });
+                    }
+                    return;
+                }
             }
 
             //lot init happens on first join, as part of the loading process. If the lot somehow crashes before first save, it'll just be a blank slate again.

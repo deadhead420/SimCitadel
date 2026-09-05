@@ -1417,7 +1417,7 @@ namespace FSO.Server.Servers.Lot.Domain
             if (avatar.mayor_nhood == LotPersist.neighborhood_id)
                 state.AvatarFlags |= VMTSOAvatarFlags.Mayor; //we're not roommate anywhere, so we can be here.
 
-            if (myRoomieLots.Count == 0 && LotPersist.category != LotCategory.community)
+            if (LotPersist.category != LotCategory.community)
                 state.AvatarFlags |= VMTSOAvatarFlags.CanBeRoommate; //we're not roommate anywhere, so we can be here.
 
             if (rage < 7)

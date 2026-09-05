@@ -15,7 +15,7 @@ namespace FSO.Server.Database.DA.Lots
         }
 
         public DbLot Get(int id){
-            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE lot_id = @id", new { id = id }).ToList();
+            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE lot_id = @id", new { id = id }).FirstOrDefault();
         }
         public List<DbLot> GetMultiple(int[] id)
         {
@@ -111,7 +111,7 @@ namespace FSO.Server.Database.DA.Lots
         }
         public PagedList<DbLot> AllByPage(int shard_id, int offset = 1, int limit = 100, string orderBy = "lot_id")
         {
-            var total = Context.Connection.Query<int>("SELECT COUNT(*) FROM fso_lots WHERE shard_id = @shard_id", new { shard_id = shard_id }).ToList();
+            var total = Context.Connection.Query<int>("SELECT COUNT(*) FROM fso_lots WHERE shard_id = @shard_id", new { shard_id = shard_id }).FirstOrDefault();
             var results = Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE shard_id = @shard_id ORDER BY @order DESC LIMIT @offset, @limit", new { shard_id = shard_id, order = orderBy, offset = offset, limit = limit });
             return new PagedList<DbLot>(results, offset, total);
         }
@@ -138,12 +138,12 @@ namespace FSO.Server.Database.DA.Lots
 
         public DbLot GetByName(int shard_id, string name)
         {
-            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE name = @name AND shard_id = @shard_id", new { name, shard_id = shard_id }).ToList();
+            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE name = @name AND shard_id = @shard_id", new { name, shard_id = shard_id }).FirstOrDefault();
         }
 
         public DbLot GetByLocation(int shard_id, uint location)
         {
-            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE location = @location AND shard_id = @shard_id", new { location = location, shard_id = shard_id }).ToList();
+            return Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE location = @location AND shard_id = @shard_id", new { location = location, shard_id = shard_id }).FirstOrDefault();
         }
  
         public List<DbLot> GetAdjToLocation(int shard_id, uint location)
@@ -171,7 +171,7 @@ namespace FSO.Server.Database.DA.Lots
 
         public DbLot Get3DWork()
         {
-            var item = Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE thumb3d_dirty = 1 AND thumb3d_time < @time ORDER BY thumb3d_time LIMIT 1", new { time = Epoch.Now - 300 }).ToList();
+            var item = Context.Connection.Query<DbLot>("SELECT * FROM fso_lots WHERE thumb3d_dirty = 1 AND thumb3d_time < @time ORDER BY thumb3d_time LIMIT 1", new { time = Epoch.Now - 300 }).FirstOrDefault();
             if (item != null)
             {
                 SetDirty(item.lot_id, 0);
@@ -219,7 +219,7 @@ namespace FSO.Server.Database.DA.Lots
 
         public DbLotServerTicket GetLotServerTicket(string id)
         {
-            return Context.Connection.Query<DbLotServerTicket>("SELECT * FROM fso_lot_server_tickets WHERE ticket_id = @ticket_id", new { ticket_id = id }).ToList();
+            return Context.Connection.Query<DbLotServerTicket>("SELECT * FROM fso_lot_server_tickets WHERE ticket_id = @ticket_id", new { ticket_id = id }).FirstOrDefault();
         }
 
         public List<DbLotServerTicket> GetLotServerTicketsForClaimedAvatar(int claim_id)

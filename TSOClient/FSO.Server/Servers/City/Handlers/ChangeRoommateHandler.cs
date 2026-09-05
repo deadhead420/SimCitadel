@@ -13,6 +13,7 @@ using FSO.Server.Protocol.Electron.Packets;
 using FSO.Server.Protocol.Gluon.Packets;
 using FSO.Server.Servers.City.Domain;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -145,15 +146,21 @@ namespace FSO.Server.Servers.City.Handlers
                             Status(session, ChangeRoommateResponseStatus.NO_INVITE_PENDING); return;
                         }
                     }
-                    else
+		    else
                     {
-                        //verify that requester is definitely a roommate in the target lot
-
-			// Match the lot owned by the session's avatar from myLots
-			var ownedLotIds = new HashSet<uint>(ownedLots.Select(l => l.lot_id));
-			var lotr = myLots.FirstOrDefault(x => ownedLotIds.Contains(x.lot_id));
-                        var ownedLot = ownedLots.FirstOrDefault();
+                        // Get lots owned and lots where player is a roommate
+                        var ownedLots = da.Lots.GetByOwner(session.AvatarId);
                         var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
+
+                        // Resolve target lot from packet location or owned lots
+                        var targetLot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
+                        uint targetLotId = targetLot?.lot_id ?? 0;
+                        var ownedLotIds = new HashSet<uint>(ownedLots.Select(l => l.lot_id));
+
+                        var lotr = myLots.FirstOrDefault(x =>
+                            (targetLotId != 0 && x.lot_id == targetLotId) ||
+                            ownedLotIds.Contains(x.lot_id)
+                        );
 
                         if (packet.Type == ChangeRoommateType.INVITE)
                         {
@@ -162,6 +169,7 @@ namespace FSO.Server.Servers.City.Handlers
                             if (targ == null)
                             {
                                 Status(session, ChangeRoommateResponseStatus.UNKNOWN);
+				return;
                             }
                             var targLots = da.Roommates.GetAvatarsLots(packet.AvatarId);
 //                            if (targLots.Count > 0)
@@ -169,9 +177,6 @@ namespace FSO.Server.Servers.City.Handlers
 //                                Status(session, ChangeRoommateResponseStatus.ROOMIE_ELSEWHERE); //request already pending or otherwise
 //                                return;
 //                            }
-			    // Match the specific lot where the invite action is happening
-			    var activeLotId = session.CurrentLotId; // or packet.LotId
-			    var lotr = myLots.FirstOrDefault(x => x.lot_id == activeLotId);
                             DbLot lot = null;
                             if (lotr != null) lot = da.Lots.Get(lotr.lot_id);
                             if (lotr == null || lot == null)

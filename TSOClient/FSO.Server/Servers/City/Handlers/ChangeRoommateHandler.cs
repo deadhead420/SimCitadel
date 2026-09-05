@@ -184,19 +184,24 @@ namespace FSO.Server.Servers.City.Handlers
 //                                Status(session, ChangeRoommateResponseStatus.ROOMIE_ELSEWHERE); //request already pending or otherwise
 //                                return;
 //                            }
-                            DbLot lot = null;
-                            if (lotr != null) lot = da.Lots.Get(lotr.lot_id);
-                            if (lotr == null || lot == null)
-                            {
-                                Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST); //what??
-                                return;
-                            }
+			    DbLot lot = targetLot;
+				if (lotr != null)
+				{
+				    var resolved = da.Lots.Get(lotr.lot_id);
+				    if (resolved != null) lot = resolved;
+				}
+
+				if (lot == null)
+				{
+				    Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
+				    return;
+				}
                             if (lot.owner_id != session.AvatarId) //only an owner can add roommates
                             {
                                 Status(session, ChangeRoommateResponseStatus.YOU_ARE_NOT_OWNER);
                                 return;
                             }
-                            var myLotRoomies = da.Roommates.GetLotRoommates(lotr.lot_id);
+			    var myLotRoomies = da.Roommates.GetLotRoommates(lot.lot_id);
                             if (myLotRoomies.Count >= 8)
                             {
                                 //if pending roommates put us over, cancel some of them.

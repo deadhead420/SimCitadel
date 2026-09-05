@@ -149,7 +149,9 @@ namespace FSO.Server.Servers.City.Handlers
                     {
                         //verify that requester is definitely a roommate in the target lot
 
-                        var ownedLots = da.Lots.GetByOwner(session.AvatarId);
+			// Match the lot owned by the session's avatar from myLots
+			var ownedLotIds = new HashSet<uint>(ownedLots.Select(l => l.lot_id));
+			var lotr = myLots.FirstOrDefault(x => ownedLotIds.Contains(x.lot_id));
                         var ownedLot = ownedLots.FirstOrDefault();
                         var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
 

@@ -204,30 +204,30 @@ namespace FSO.Server.Servers.City.Handlers
                 else
                 {
                     //we may still be roomie in a lot. If we are, we must be removed from that lot.
-//                    if (!packet.MayorMode)
-//                    {
-//                        var myLots = db.Roommates.GetAvatarsLots(session.AvatarId);
-//                        if (myLots.Count > 0)
-//                        {
-//                            if (myLots[0].permissions_level > 1)
-//                            {
-//                                //owner should not be able to move out of a lot implicitly
-//                                session.Write(new PurchaseLotResponse()
-//                                {
-//                                    Status = PurchaseLotStatus.FAILED,
-//                                    Reason = PurchaseLotFailureReason.UNKNOWN
-//                                });
-//                                return;
-//                            }
-//                            var lot = db.Lots.Get(myLots[0].lot_id);
-//                            if (lot != null)
-//                            {
-//                                var kickResult = await Kernel.Get<ChangeRoommateHandler>().TryKick(lot.location, session.AvatarId, session.AvatarId);
-//                                if (kickResult != Protocol.Electron.Model.ChangeRoommateResponseStatus.SELFKICK_SUCCESS)
-//                                {
-//                                    session.Write(new PurchaseLotResponse()
-//                                    {
-//                                        Status = PurchaseLotStatus.FAILED,
+/*                    if (!packet.MayorMode)
+                      {
+                          var myLots = db.Roommates.GetAvatarsLots(session.AvatarId);
+                          if (myLots.Count > 0)
+                          {
+                              if (myLots[0].permissions_level > 1)
+                              {
+                                  //owner should not be able to move out of a lot implicitly
+                                  session.Write(new PurchaseLotResponse()
+                                  {
+                                      Status = PurchaseLotStatus.FAILED,
+                                      Reason = PurchaseLotFailureReason.UNKNOWN
+                                  });
+                                  return;
+                              }
+                              var lot = db.Lots.Get(myLots[0].lot_id);
+                              if (lot != null)
+                              {
+                                  var kickResult = await Kernel.Get<ChangeRoommateHandler>().TryKick(lot.location, session.AvatarId, session.AvatarId);
+                                  if (kickResult != Protocol.Electron.Model.ChangeRoommateResponseStatus.SELFKICK_SUCCESS)
+                                  {
+                                      session.Write(new PurchaseLotResponse()
+                                      {
+                                          Status = PurchaseLotStatus.FAILED,
                                         Reason = PurchaseLotFailureReason.IN_LOT_CANT_EVICT
                                     });
                                     return;

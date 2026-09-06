@@ -1118,34 +1118,53 @@ namespace FSO.Client.UI.Panels
             }
         }
 
-	private void InviteButton_OnButtonClick(UIElement button)
+private uint ResolveTargetLotLocation()
+{
+    // 1. Active lot ID via UI controller hierarchy
+    var gameScreen = FindController<CoreGameScreenController>();
+    if (gameScreen != null)
     {
-        if (CurrentAvatar.Value != null)
-        {
-            uint currentLotLocation = (uint)(FindController<CoreGameScreenController>()?.GetCurrentLotID() ?? MyLot?.Value?.Lot_Location_Packed ?? 0);
-
-            FindController<PersonPageController>().ChangeRoommate(
-                ChangeRoommateType.INVITE,
-                CurrentAvatar.Value.Avatar_Id,
-                currentLotLocation
-            );
-        }
+        var activeLotId = gameScreen.GetCurrentLotID();
+        if (activeLotId > 0) return (uint)activeLotId;
     }
 
-    private void KickOutButton_OnButtonClick(UIElement button)
+    // 2. Fallback to target avatar's residing lot location (if inspecting a roomie in profile)
+    if (CurrentAvatar.Value != null && CurrentAvatar.Value.Avatar_LotGridXY > 0)
     {
-        if (CurrentAvatar.Value != null)
-        {
-            uint currentLotLocation = (uint)(FindController<CoreGameScreenController>()?.GetCurrentLotID() ?? MyLot?.Value?.Lot_Location_Packed ?? 0);
-
-            FindController<PersonPageController>().ChangeRoommate(
-                ChangeRoommateType.KICK,
-                CurrentAvatar.Value.Avatar_Id,
-                currentLotLocation
-            );
-        }
+        return CurrentAvatar.Value.Avatar_LotGridXY;
     }
-        
+
+    // 3. Fallback to player's primary lot context
+    return MyLot?.Value?.Lot_Location_Packed ?? 0;
+}
+
+private void InviteButton_OnButtonClick(UIElement button)
+{
+    if (CurrentAvatar.Value != null)
+    {
+        uint targetLocation = ResolveTargetLotLocation();
+
+        FindController<PersonPageController>()?.ChangeRoommate(
+            ChangeRoommateType.INVITE,
+            CurrentAvatar.Value.Avatar_Id,
+            targetLocation
+        );
+    }
+}
+
+private void KickOutButton_OnButtonClick(UIElement button)
+{
+    if (CurrentAvatar.Value != null)
+    {
+        uint targetLocation = ResolveTargetLotLocation();
+
+        FindController<PersonPageController>()?.ChangeRoommate(
+            ChangeRoommateType.KICK,
+            CurrentAvatar.Value.Avatar_Id,
+            targetLocation
+        );
+    }
+} 
         public void RelationshipChange()
         {
             RelOutSTR = 0;

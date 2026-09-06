@@ -1134,7 +1134,15 @@ namespace FSO.Client.UI.Panels
                 Buttons = new UIAlertButton[] {
                         new UIAlertButton(UIAlertButtonType.Yes, (btn) => {
                             if (CurrentAvatar.Value != null) {
-			        FindController<PersonPageController>().ChangeRoommate(ChangeRoommateType.KICK, CurrentAvatar.Value.Avatar_Id, MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+			        uint currentLocation = (GameFacade.Scenes.CurrentMemory != null && GameFacade.Scenes.CurrentMemory.LotLocation != 0)
+			        ? GameFacade.Scenes.CurrentMemory.LotLocation
+			        : (MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+
+				FindController<PersonPageController>().ChangeRoommate(
+			        ChangeRoommateType.KICK,
+			        CurrentAvatar.Value.Avatar_Id,
+			        currentLocation
+				);
                             }
                             UIScreen.RemoveDialog(alert);
                             }),

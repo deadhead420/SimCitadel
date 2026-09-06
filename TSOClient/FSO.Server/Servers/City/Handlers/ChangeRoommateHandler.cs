@@ -158,12 +158,21 @@ namespace FSO.Server.Servers.City.Handlers
 
                         // Resolve target lot from packet location or owned lots
 			uint loc = packet.LotLocation;
-	                if (loc == 0)
-		        {
-        		        // Fall back to the first lot the avatar owns or is a roommate on
-        		        var activeLot = myLots.FirstOrDefault() ?? ownedLots.FirstOrDefault();
-        		        if (activeLot != null) loc = (uint)activeLot.location;
-        		}
+    		        if (loc == 0)
+        		{
+               		 // Try to find the target lot location from roommates or owned lots
+          			var roommateLot = myLots.FirstOrDefault();
+        		        if (roommateLot != null)
+   		             	{
+        		            var lot = da.Lots.Get(roommateLot.lot_id);
+                		    if (lot != null) loc = (uint)lot.location;
+       		         	}
+        		        else
+   		             	{
+        		            var ownedLot = ownedLots.FirstOrDefault();
+                		    if (ownedLot != null) loc = (uint)ownedLot.location;
+         		     	}
+         		}
 
 			var targetLot = da.Lots.GetByLocation(Context.ShardId, loc);
 			int targetLotId = targetLot?.lot_id ?? 0;

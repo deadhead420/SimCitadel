@@ -1106,8 +1106,8 @@ namespace FSO.Client.UI.Panels
             BanCheckBox.Disabled = isMe;
             IgnoreButton.Disabled = isMe;
 
-            KickOutButton.Disabled = !(isMe || isMyPropertyOwner);
-	    bool ownsProperty = isMyPropertyOwner || (MyAvatar.Value != null && MyAvatar.Value.Avatar_LotGridXY != 0);
+	    KickOutButton.Disabled = !(isMe || isMyPropertyOwner);
+	    bool ownsProperty = isMyPropertyOwner || (MyAvatar?.Value?.Avatar_LotGridXY ?? 0) != 0;
             InviteButton.Disabled = !ownsProperty;
             KickOutButton.Tooltip = GameFacade.Strings.GetString("189", (isMe) ? "95" : "33");
 

@@ -43,37 +43,50 @@ namespace FSO.Server.Servers.City.Handlers
             session.Write(new ChangeRoommateResponse { Type = status });
         }
 
-        public async Task Handle(IGluonSession session, NotifyLotRoommateChange packet)
+        private void NotifyLotServer(IDA da, int lotId, uint avatarId, Protocol.Gluon.Model.ChangeType changeType)
         {
-            // received from a lot server to notify of another lot's roommate change.
+            var lotOwned = da.LotClaims.GetByLotID(lotId);
+            if (lotOwned != null)
+            {
+                var lotServer = LotServers.GetLotServerSession(lotOwned.owner);
+                if (lotServer != null)
+                {
+                    lotServer.Write(new NotifyLotRoommateChange
+                    {
+                        AvatarId = avatarId,
+                        LotId = lotId,
+                        Change = changeType
+                    });
+                }
+            }
+        }
+
+        public async void Handle(IGluonSession session, NotifyLotRoommateChange packet)
+        {
             using (var da = DAFactory.Get())
             {
                 var lot = da.Lots.Get(packet.LotId);
-                if (lot == null) return; // lot missing
+                if (lot == null) return;
 
                 DataService.Invalidate<FSO.Common.DataService.Model.Lot>(lot.location);
 
-                // if online, notify the lot
                 var lotOwned = da.LotClaims.GetByLotID(lot.lot_id);
                 if (lotOwned != null)
                 {
                     var lotServer = LotServers.GetLotServerSession(lotOwned.owner);
                     if (lotServer != null)
                     {
-                        // immediately notify lot of new roommate
                         lotServer.Write(packet);
                     }
                 }
                 else
                 {
-                    // try force the lot open
-                    // we don't need to send any packets in this case - the lot fully restores object ownership from db.
-                    var result = await Lots.TryFindOrOpen(lot.location, 0, NullSecurityContext.INSTANCE);
+                    await Lots.TryFindOrOpen(lot.location, 0, NullSecurityContext.INSTANCE);
                 }
             }
         }
 
-        public async Task Handle(IVoltronSession session, ChangeRoommateRequest packet)
+        public async void Handle(IVoltronSession session, ChangeRoommateRequest packet)
         {
             try
             {
@@ -81,15 +94,16 @@ namespace FSO.Server.Servers.City.Handlers
 
                 using (var da = DAFactory.Get())
                 {
+                    // 1. POLL - Check invites across all lots
                     if (packet.Type == ChangeRoommateType.POLL)
                     {
-                        var lots = da.Roommates.GetAvatarsLots(session.AvatarId);
-                        foreach (var lot in lots)
+                        var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
+                        foreach (var lotLink in myLots)
                         {
-                            if (lot.is_pending == 1)
+                            if (lotLink.is_pending == 1)
                             {
-                                var lotdb = da.Lots.Get(lot.lot_id);
-                                if (lotdb == null) return;
+                                var lotdb = da.Lots.Get(lotLink.lot_id);
+                                if (lotdb == null) continue;
 
                                 session.Write(new ChangeRoommateRequest
                                 {
@@ -99,77 +113,78 @@ namespace FSO.Server.Servers.City.Handlers
                                 });
                             }
                         }
+                        return;
                     }
-                    else if (packet.Type == ChangeRoommateType.ACCEPT)
+
+                    // 2. TARGET LOT RESOLUTION
+                    DbLot targetLot = null;
+
+                    if (packet.LotLocation != 0)
                     {
-                        var lot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
-                        if (lot == null) 
-                        { 
-                            Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST); 
-                            return; 
+                        targetLot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
+                    }
+                    else
+                    {
+                        var ownedLots = da.Lots.GetByOwner(session.AvatarId);
+                        if (ownedLots != null && ownedLots.Count == 1)
+                        {
+                            targetLot = ownedLots[0];
+                        }
+                    }
+
+                    // 3. ACCEPT / DECLINE
+                    if (packet.Type == ChangeRoommateType.ACCEPT)
+                    {
+                        if (targetLot == null)
+                        {
+                            Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
+                            return;
                         }
 
-                        if (da.Roommates.AcceptRoommateRequest(session.AvatarId, lot.lot_id))
+                        if (da.Roommates.AcceptRoommateRequest(session.AvatarId, targetLot.lot_id))
                         {
-                            var lotDS = await DataService.Get<FSO.Common.DataService.Model.Lot>(packet.LotLocation);
+                            var lotDS = await DataService.Get<FSO.Common.DataService.Model.Lot>(targetLot.location);
                             if (lotDS != null) lotDS.Lot_RoommateVec = lotDS.Lot_RoommateVec.Add(session.AvatarId);
 
-                            var lotOwned = da.LotClaims.GetByLotID(lot.lot_id);
-                            if (lotOwned != null)
-                            {
-                                var lotServer = LotServers.GetLotServerSession(lotOwned.owner);
-                                if (lotServer != null)
-                                {
-                                    lotServer.Write(new NotifyLotRoommateChange()
-                                    {
-                                        AvatarId = session.AvatarId,
-                                        LotId = lot.lot_id,
-                                        Change = Protocol.Gluon.Model.ChangeType.ADD_ROOMMATE
-                                    });
-                                }
-                            }
+                            NotifyLotServer(da, targetLot.lot_id, session.AvatarId, Protocol.Gluon.Model.ChangeType.ADD_ROOMMATE);
 
-                            var avatar = await DataService.Get<Avatar>(session.AvatarId);
                             var currentLots = da.Roommates.GetAvatarsLots(session.AvatarId);
                             if (currentLots.Count <= 1)
                             {
                                 da.Avatars.UpdateMoveDate(session.AvatarId, Epoch.Now);
                             }
 
-                            Status(session, ChangeRoommateResponseStatus.ACCEPT_SUCCESS); 
-                            return;
-                        }
-                        else
-                        {
-                            Status(session, ChangeRoommateResponseStatus.NO_INVITE_PENDING); 
-                            return;
-                        }
-                    }
-                    else if (packet.Type == ChangeRoommateType.DECLINE)
-                    {
-                        var lot = da.Lots.GetByLocation(Context.ShardId, packet.LotLocation);
-                        if (lot == null) 
-                        { 
-                            Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST); 
-                            return; 
-                        }
-
-                        if (da.Roommates.DeclineRoommateRequest(session.AvatarId, lot.lot_id))
-                        {
-                            Status(session, ChangeRoommateResponseStatus.DECLINE_SUCCESS);
-                            return;
+                            Status(session, ChangeRoommateResponseStatus.ACCEPT_SUCCESS);
                         }
                         else
                         {
                             Status(session, ChangeRoommateResponseStatus.NO_INVITE_PENDING);
+                        }
+                        return;
+                    }
+
+                    if (packet.Type == ChangeRoommateType.DECLINE)
+                    {
+                        if (targetLot == null)
+                        {
+                            Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
                             return;
                         }
-                    }
-                    else if (packet.Type == ChangeRoommateType.INVITE)
-                    {
-                        uint loc = packet.LotLocation;
-                        DbLot targetLot = (loc != 0) ? da.Lots.GetByLocation(Context.ShardId, loc) : null;
 
+                        if (da.Roommates.DeclineRoommateRequest(session.AvatarId, targetLot.lot_id))
+                        {
+                            Status(session, ChangeRoommateResponseStatus.DECLINE_SUCCESS);
+                        }
+                        else
+                        {
+                            Status(session, ChangeRoommateResponseStatus.NO_INVITE_PENDING);
+                        }
+                        return;
+                    }
+
+                    // 4. INVITE
+                    if (packet.Type == ChangeRoommateType.INVITE)
+                    {
                         if (targetLot == null)
                         {
                             Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
@@ -182,25 +197,25 @@ namespace FSO.Server.Servers.City.Handlers
                             return;
                         }
 
-                        var targ = da.Avatars.Get(packet.AvatarId);
-                        if (targ == null)
+                        var targetAvatar = da.Avatars.Get(packet.AvatarId);
+                        if (targetAvatar == null)
                         {
                             Status(session, ChangeRoommateResponseStatus.UNKNOWN);
                             return;
                         }
 
-                        var myLotRoomies = da.Roommates.GetLotRoommates(targetLot.lot_id);
-                        if (myLotRoomies.Count >= 8)
+                        var currentRoomies = da.Roommates.GetLotRoommates(targetLot.lot_id);
+                        if (currentRoomies.Count >= 8)
                         {
-                            var pending = myLotRoomies.FirstOrDefault(x => x.is_pending == 1);
-                            if (pending == null)
+                            var pendingReq = currentRoomies.FirstOrDefault(x => x.is_pending == 1);
+                            if (pendingReq == null)
                             {
                                 Status(session, ChangeRoommateResponseStatus.TOO_MANY_ROOMMATES);
                                 return;
                             }
                             else
                             {
-                                da.Roommates.DeclineRoommateRequest(pending.avatar_id, pending.lot_id);
+                                da.Roommates.DeclineRoommateRequest(pendingReq.avatar_id, pendingReq.lot_id);
                             }
                         }
 
@@ -217,7 +232,7 @@ namespace FSO.Server.Servers.City.Handlers
                             var targetSession = Sessions.GetByAvatarId(packet.AvatarId);
                             if (targetSession != null)
                             {
-                                targetSession.Write(new ChangeRoommateRequest()
+                                targetSession.Write(new ChangeRoommateRequest
                                 {
                                     Type = ChangeRoommateType.INVITE,
                                     AvatarId = session.AvatarId,
@@ -233,10 +248,19 @@ namespace FSO.Server.Servers.City.Handlers
                         }
                         return;
                     }
-                    else if (packet.Type == ChangeRoommateType.KICK)
+
+                    // 5. KICK
+                    if (packet.Type == ChangeRoommateType.KICK)
                     {
-                        var result = await TryKick(packet.LotLocation, session.AvatarId, packet.AvatarId);
+                        if (targetLot == null)
+                        {
+                            Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
+                            return;
+                        }
+
+                        var result = await TryKick(targetLot.location, session.AvatarId, packet.AvatarId);
                         Status(session, result);
+                        return;
                     }
                 }
             }
@@ -257,12 +281,8 @@ namespace FSO.Server.Servers.City.Handlers
 
                 if (roommates.Any(x => x.avatar_id == target && x.is_pending == 0))
                 {
-                    var selfDelete = false;
-                    if (requester == target)
-                    {
-                        selfDelete = true;
-                    }
-                    else if (lot.owner_id != requester)
+                    var selfDelete = (requester == target);
+                    if (!selfDelete && lot.owner_id != requester)
                     {
                         return ChangeRoommateResponseStatus.YOU_ARE_NOT_OWNER;
                     }
@@ -279,24 +299,7 @@ namespace FSO.Server.Servers.City.Handlers
 
                     DataService.Invalidate<FSO.Common.DataService.Model.Lot>(location);
 
-                    var lotOwned = da.LotClaims.GetByLotID(lot.lot_id);
-                    if (lotOwned != null)
-                    {
-                        var lotServer = LotServers.GetLotServerSession(lotOwned.owner);
-                        if (lotServer != null)
-                        {
-                            lotServer.Write(new NotifyLotRoommateChange()
-                            {
-                                AvatarId = target,
-                                LotId = lot.lot_id,
-                                Change = Protocol.Gluon.Model.ChangeType.REMOVE_ROOMMATE
-                            });
-                        }
-                    }
-                    else
-                    {
-                        var result = await Lots.TryFindOrOpen(lot.location, 0, NullSecurityContext.INSTANCE);
-                    }
+                    NotifyLotServer(da, lot.lot_id, target, Protocol.Gluon.Model.ChangeType.REMOVE_ROOMMATE);
 
                     var avatar = await DataService.Get<Avatar>(target);
                     if (avatar != null) avatar.Avatar_LotGridXY = 0;
@@ -309,17 +312,16 @@ namespace FSO.Server.Servers.City.Handlers
                             var targetSession = Sessions.GetByAvatarId(roomie.avatar_id);
                             if (targetSession != null)
                             {
-                                targetSession.Write(new ChangeRoommateResponse()
+                                targetSession.Write(new ChangeRoommateResponse
                                 {
-                                    Type = (kickedMe) ? ChangeRoommateResponseStatus.GOT_KICKED : ChangeRoommateResponseStatus.ROOMMATE_LEFT,
+                                    Type = kickedMe ? ChangeRoommateResponseStatus.GOT_KICKED : ChangeRoommateResponseStatus.ROOMMATE_LEFT,
                                     Extra = target
                                 });
                             }
                         }
                     }
 
-                    if (selfDelete) return ChangeRoommateResponseStatus.SELFKICK_SUCCESS;
-                    else return ChangeRoommateResponseStatus.KICK_SUCCESS;
+                    return selfDelete ? ChangeRoommateResponseStatus.SELFKICK_SUCCESS : ChangeRoommateResponseStatus.KICK_SUCCESS;
                 }
                 else
                 {

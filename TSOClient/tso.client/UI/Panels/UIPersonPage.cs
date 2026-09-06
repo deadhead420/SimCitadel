@@ -1119,33 +1119,33 @@ namespace FSO.Client.UI.Panels
         }
 
 	private void InviteButton_OnButtonClick(UIElement button)
-	{
-   	 if (CurrentAvatar.Value != null)
-   	 {
-   	     uint currentLotLocation = (uint)(MyLot?.Value?.location ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+    {
+        if (CurrentAvatar.Value != null)
+        {
+            uint currentLotLocation = (uint)(MyLot?.Value?.Lot_Location_Packed ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
 
-   	     FindController<PersonPageController>().ChangeRoommate(
-   	         ChangeRoommateType.INVITE,
-   	         CurrentAvatar.Value.Avatar_Id,
-   	         currentLotLocation
-   	     );
-   	 }
-	}
+            FindController<PersonPageController>().ChangeRoommate(
+                ChangeRoommateType.INVITE,
+                CurrentAvatar.Value.Avatar_Id,
+                currentLotLocation
+            );
+        }
+    }
 
-	private void KickOutButton_OnButtonClick(UIElement button)
-	{
-	    if (CurrentAvatar.Value != null)
-	    {
-	        uint currentLotLocation = (uint)(MyLot?.Value?.location ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+    private void KickOutButton_OnButtonClick(UIElement button)
+    {
+        if (CurrentAvatar.Value != null)
+        {
+            uint currentLotLocation = (uint)(MyLot?.Value?.Lot_Location_Packed ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
 
-	        FindController<PersonPageController>().ChangeRoommate(
-	            ChangeRoommateType.KICK,
-	            CurrentAvatar.Value.Avatar_Id,
-	            currentLotLocation
-	        );
-	    }
-	}
-
+            FindController<PersonPageController>().ChangeRoommate(
+                ChangeRoommateType.KICK,
+                CurrentAvatar.Value.Avatar_Id,
+                currentLotLocation
+            );
+        }
+    }
+        
         public void RelationshipChange()
         {
             RelOutSTR = 0;

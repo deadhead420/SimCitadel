@@ -158,32 +158,31 @@ namespace FSO.Server.Servers.City.Handlers
 			
 uint loc = packet.LotLocation;
 
-            // Fetch target lot strictly by location
-            DbLot targetLot = null;
+// Fetch target lot strictly by location passed in the packet
+DbLot targetLot = (loc != 0) ? da.Lots.GetByLocation(Context.ShardId, loc) : null;
 
-            if (loc != 0)
-            {
-                targetLot = da.Lots.GetByLocation(Context.ShardId, loc);
-            }
-            else
-            {
-                // If client sent no location, match against the player's owned lots
-                // If the player only owns 1 lot, use it; otherwise fail safely rather than guessing
-                if (ownedLots.Count == 1)
-                {
-                    targetLot = ownedLots[0];
-                }
-            }
+// HARD STOP: Fail cleanly if packet location is missing or invalid
+if (targetLot == null)
+{
+    Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
+    return;
+}
 
-            // HARD STOP: Fail cleanly if the target lot cannot be determined
-            if (targetLot == null)
-            {
-                Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
-                return;
-            }
+// Ensure the inviter actually owns this target lot
+if (targetLot.owner_id != session.AvatarId)
+{
+    Status(session, ChangeRoommateResponseStatus.YOU_ARE_NOT_OWNER);
+    return;
+}
 
-            int targetLotId = targetLot.lot_id;
-            var lotr = myLots.FirstOrDefault(x => x.lot_id == targetLotId);
+// Create roommate entry explicitly tied to targetLot.lot_id
+da.Roommates.Create(new DbRoommate
+{
+    avatar_id = packet.AvatarId,
+    lot_id = targetLot.lot_id,
+    is_pending = 1,
+    permissions_level = 0
+});
 
                         if (packet.Type == ChangeRoommateType.INVITE)
                         {

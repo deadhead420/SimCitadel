@@ -122,18 +122,14 @@ namespace FSO.Client.Controllers
         }
 
 	public void ChangeRoommate(ChangeRoommateType type, uint avatarId, uint lotLocation)
-	{
-	    var client = GameFacade.Client;
-	    if (client != null)
-	    {
-	        client.Send(new ChangeRoommateRequest
-	        {
-	            Type = type,
-	            AvatarId = avatarId,
-	            LotLocation = lotLocation // MUST BE ASSIGNED HERE
-	        });
-	    }
-	}
+{
+    Network?.CityClient?.Write(new ChangeRoommateRequest
+    {
+        Type = type,
+        AvatarId = avatarId,
+        LotLocation = lotLocation
+    });
+}
 
         public void FindAvatarLocation()
         {

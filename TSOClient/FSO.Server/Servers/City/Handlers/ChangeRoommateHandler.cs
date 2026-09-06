@@ -160,8 +160,17 @@ namespace FSO.Server.Servers.City.Handlers
 			uint loc = packet.LotLocation;
 			if (loc == 0)
 			{
-			    var fallbackLot = ownedLots.FirstOrDefault();
-			    if (fallbackLot != null) loc = (uint)fallbackLot.location;
+				// Try to get the lot where the avatar is currently online/active first
+			    var activeLot = da.Lots.Get(session.CurrentLotId);
+			    if (activeLot != null)
+			    {
+			        loc = (uint)activeLot.location;
+			    }
+			    else
+			    {
+			        var fallbackLot = ownedLots.FirstOrDefault();
+			        if (fallbackLot != null) loc = (uint)fallbackLot.location;
+			    }
 			}
 
 			var targetLot = da.Lots.GetByLocation(Context.ShardId, loc);

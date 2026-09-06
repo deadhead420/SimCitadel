@@ -1122,20 +1122,7 @@ namespace FSO.Client.UI.Panels
 	{
 	    if (CurrentAvatar.Value != null)
 	    {
-	        uint currentLocation = 0;
-
-	        // Retrieve current lot location via GameFacade Controller
-	        var lot = GameFacade.Controller?.World;
-	        if (lot?.State != null)
-	        {
-	            currentLocation = (uint)lot.State.Location;
-	        }
-
-	        // Fallback to primary lot grid location if not on a lot
-	        if (currentLocation == 0)
-	        {
-	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
-	        }
+	        uint currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.INVITE,
@@ -1149,20 +1136,7 @@ namespace FSO.Client.UI.Panels
 	{
 	    if (CurrentAvatar.Value != null)
 	    {
-	        uint currentLocation = 0;
-
-	        // Retrieve current lot location via GameFacade Controller
-	        var lot = GameFacade.Controller?.World;
-	        if (lot?.State != null)
-	        {
-	            currentLocation = (uint)lot.State.Location;
-	        }
-
-	        // Fallback to primary lot grid location if not on a lot
-	        if (currentLocation == 0)
-	        {
-	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
-	        }
+	        uint currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.KICK,

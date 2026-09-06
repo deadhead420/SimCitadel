@@ -1117,66 +1117,55 @@ namespace FSO.Client.UI.Panels
             }
         }
 
-        private void KickOutButton_OnButtonClick(UIElement button)
-        {
-            //is it me?
-            var isMe = false;
+	private void KickOutButton_OnButtonClick(UIElement button)
+	{
+	    // ... setup alert code ...
+	    if (CurrentAvatar.Value != null)
+	    {
+	        uint currentLocation = 0;
+	        var world = GameFacade.Scenes.Get<World>();
+	        if (world?.State != null)
+	        {
+	            currentLocation = (uint)world.State.Location;
+	        }
 
-            if (CurrentAvatar != null && CurrentAvatar.Value != null)
-            {
-                isMe = FindController<CoreGameScreenController>().IsMe(CurrentAvatar.Value.Avatar_Id);
-            }
-            UIAlert alert = null;
-            alert = UIScreen.GlobalShowAlert(new UIAlertOptions()
-            {
-                Title = GameFacade.Strings.GetString("208", (isMe)?"7":"1"),
-                Message = GameFacade.Strings.GetString("208", (isMe) ? "8" : "2"),
-                Buttons = new UIAlertButton[] {
-                        new UIAlertButton(UIAlertButtonType.Yes, (btn) => {
-                            if (CurrentAvatar.Value != null) {
-			        uint currentLocation = (GameFacade.Scenes.CurrentMemory != null && GameFacade.Scenes.CurrentMemory.LotLocation != 0)
-			        ? GameFacade.Scenes.CurrentMemory.LotLocation
-			        : (MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+	        if (currentLocation == 0)
+	        {
+	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
+	        }
 
-				FindController<PersonPageController>().ChangeRoommate(
-			        ChangeRoommateType.KICK,
-			        CurrentAvatar.Value.Avatar_Id,
-			        currentLocation
-				);
-                            }
-                            UIScreen.RemoveDialog(alert);
-                            }),
-                        new UIAlertButton(UIAlertButtonType.No, (btn) => UIScreen.RemoveDialog(alert))
-                        },
-            }, true);
-        }
+	        FindController<PersonPageController>().ChangeRoommate(
+	            ChangeRoommateType.KICK,
+	            CurrentAvatar.Value.Avatar_Id,
+	            currentLocation
+	        );
+	    }
+	}
 
-        private void InviteButton_OnButtonClick(UIElement button)
-        {
-            UIAlert alert = null;
-            alert = UIScreen.GlobalShowAlert(new UIAlertOptions()
-            {
-                Title = GameFacade.Strings.GetString("208", "5"),
-                Message = GameFacade.Strings.GetString("208", "6"),
-                Buttons = new UIAlertButton[] {
-                        new UIAlertButton(UIAlertButtonType.Yes, (btn) => {
-                            if (CurrentAvatar.Value != null) {
-			        uint currentLocation = (GameFacade.Scenes.CurrentMemory != null && GameFacade.Scenes.CurrentMemory.LotLocation != 0)
-  				  ? GameFacade.Scenes.CurrentMemory.LotLocation
-  				  : (MyAvatar.Value?.Avatar_LotGridXY ?? 0);
+	private void InviteButton_OnButtonClick(UIElement button)
+	{
+	    // ... setup alert code ...
+	    if (CurrentAvatar.Value != null)
+	    {
+	        uint currentLocation = 0;
+	        var world = GameFacade.Scenes.Get<World>();
+	        if (world?.State != null)
+	        {
+	            currentLocation = (uint)world.State.Location;
+	        }
 
-				FindController<PersonPageController>().ChangeRoommate(
-				    ChangeRoommateType.INVITE, 
-				    CurrentAvatar.Value.Avatar_Id, 
-				    currentLocation
-				);
-                            }
-                            UIScreen.RemoveDialog(alert);
-                            }),
-                        new UIAlertButton(UIAlertButtonType.No, (btn) => UIScreen.RemoveDialog(alert))
-                        },
-            }, true);
-        }
+	        if (currentLocation == 0)
+	        {
+	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
+	        }
+
+	        FindController<PersonPageController>().ChangeRoommate(
+	            ChangeRoommateType.INVITE,
+	            CurrentAvatar.Value.Avatar_Id,
+	            currentLocation
+	        );
+	    }
+	}
 
         public void RelationshipChange()
         {

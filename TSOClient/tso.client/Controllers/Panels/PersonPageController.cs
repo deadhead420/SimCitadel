@@ -121,15 +121,19 @@ namespace FSO.Client.Controllers
             DataService.Request(MaskedStruct.AdmitInfo_Lot, target.Id);
         }
 
-        public void ChangeRoommate(ChangeRoommateType type, uint target_avatar, uint target_lot)
-        {
-            Network.CityClient.Write(new ChangeRoommateRequest()
-            {
-                Type = type,
-                AvatarId = target_avatar,
-                LotLocation = target_lot
-            });
-        }
+	public void ChangeRoommate(ChangeRoommateType type, uint avatarId, uint lotLocation)
+	{
+	    var client = GameFacade.Client;
+	    if (client != null)
+	    {
+	        client.Send(new ChangeRoommateRequest
+	        {
+	            Type = type,
+	            AvatarId = avatarId,
+	            LotLocation = lotLocation // MUST BE ASSIGNED HERE
+	        });
+	    }
+	}
 
         public void FindAvatarLocation()
         {

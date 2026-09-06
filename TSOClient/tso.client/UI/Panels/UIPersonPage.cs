@@ -1122,12 +1122,12 @@ namespace FSO.Client.UI.Panels
 	{
 	    if (CurrentAvatar.Value != null)
 	    {
-	        uint currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
+	        uint currentLotId = MyLot?.Value?.Lot_Id ?? 0;
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.INVITE,
 	            CurrentAvatar.Value.Avatar_Id,
-	            currentLocation
+	            currentLotId
 	        );
 	    }
 	}
@@ -1136,12 +1136,12 @@ namespace FSO.Client.UI.Panels
 	{
 	    if (CurrentAvatar.Value != null)
 	    {
-	        uint currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
+	        uint currentLotId = MyLot?.Value?.Lot_Id ?? 0;
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.KICK,
 	            CurrentAvatar.Value.Avatar_Id,
-	            currentLocation
+	            currentLotId
 	        );
 	    }
 	}

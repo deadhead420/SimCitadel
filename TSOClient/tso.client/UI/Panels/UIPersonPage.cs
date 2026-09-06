@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using FSO.Server.Clients;
+using FSO.LotView;
 
 namespace FSO.Client.UI.Panels
 {
@@ -1117,43 +1118,20 @@ namespace FSO.Client.UI.Panels
             }
         }
 
-	private void KickOutButton_OnButtonClick(UIElement button)
-	{
-	    // ... setup alert code ...
-	    if (CurrentAvatar.Value != null)
-	    {
-	        uint currentLocation = 0;
-	        var world = GameFacade.Scenes.Get<World>();
-	        if (world?.State != null)
-	        {
-	            currentLocation = (uint)world.State.Location;
-	        }
-
-	        if (currentLocation == 0)
-	        {
-	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
-	        }
-
-	        FindController<PersonPageController>().ChangeRoommate(
-	            ChangeRoommateType.KICK,
-	            CurrentAvatar.Value.Avatar_Id,
-	            currentLocation
-	        );
-	    }
-	}
-
 	private void InviteButton_OnButtonClick(UIElement button)
 	{
-	    // ... setup alert code ...
 	    if (CurrentAvatar.Value != null)
 	    {
 	        uint currentLocation = 0;
-	        var world = GameFacade.Scenes.Get<World>();
-	        if (world?.State != null)
+
+	        // Retrieve current lot location via GameFacade Controller
+	        var lot = GameFacade.Controller?.World;
+	        if (lot?.State != null)
 	        {
-	            currentLocation = (uint)world.State.Location;
+	            currentLocation = (uint)lot.State.Location;
 	        }
 
+	        // Fallback to primary lot grid location if not on a lot
 	        if (currentLocation == 0)
 	        {
 	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
@@ -1161,6 +1139,33 @@ namespace FSO.Client.UI.Panels
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.INVITE,
+	            CurrentAvatar.Value.Avatar_Id,
+	            currentLocation
+	        );
+	    }
+	}
+
+	private void KickOutButton_OnButtonClick(UIElement button)
+	{
+	    if (CurrentAvatar.Value != null)
+	    {
+	        uint currentLocation = 0;
+
+	        // Retrieve current lot location via GameFacade Controller
+	        var lot = GameFacade.Controller?.World;
+	        if (lot?.State != null)
+	        {
+	            currentLocation = (uint)lot.State.Location;
+	        }
+
+	        // Fallback to primary lot grid location if not on a lot
+	        if (currentLocation == 0)
+	        {
+	            currentLocation = MyAvatar.Value?.Avatar_LotGridXY ?? 0;
+	        }
+
+	        FindController<PersonPageController>().ChangeRoommate(
+	            ChangeRoommateType.KICK,
 	            CurrentAvatar.Value.Avatar_Id,
 	            currentLocation
 	        );

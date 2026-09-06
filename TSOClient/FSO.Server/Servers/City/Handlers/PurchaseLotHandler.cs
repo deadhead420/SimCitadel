@@ -280,6 +280,24 @@ namespace FSO.Server.Servers.City.Handlers
                         description = ""
                     });
 
+		    // Check how many lots this avatar strictly OWNS (ignoring roommate properties)
+		var ownedLots = db.Lots.GetByOwner(session.AvatarId);
+
+		if (!packet.MayorMode && (ownedLots == null || ownedLots.Count <= 1))
+		{
+		    // First owned property! Update the avatar record to treat this as Primary
+		    var avatar = db.Avatars.Get(session.AvatarId);
+		    if (avatar != null)
+		    {
+		        avatar.primary_lot_id = (uint)lotId;
+		        avatar.avatar_lotgridxy = packedLocation;
+		        db.Avatars.Update(avatar);
+
+		        // Invalidate Avatar DataService cache so client picks up the new primary lot
+		        DataService.Invalidate<FSO.Common.DataService.Model.Avatar>(session.AvatarId);
+		    }
+		}
+
                     DataService.Invalidate<FSO.Common.DataService.Model.Lot>(packedLocation);
 
                     if (packet.MayorMode)

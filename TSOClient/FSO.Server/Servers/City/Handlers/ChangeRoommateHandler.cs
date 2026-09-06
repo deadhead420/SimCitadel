@@ -155,33 +155,21 @@ namespace FSO.Server.Servers.City.Handlers
                         // Get lots owned and lots where player is a roommate
                         var ownedLots = da.Lots.GetByOwner(session.AvatarId);
                         var myLots = da.Roommates.GetAvatarsLots(session.AvatarId);
-
-                        // Resolve target lot from packet location or owned lots
+			
 			uint loc = packet.LotLocation;
-    		        if (loc == 0)
-        		{
-               		 // Try to find the target lot location from roommates or owned lots
-          			var roommateLot = myLots.FirstOrDefault();
-        		        if (roommateLot != null)
-   		             	{
-        		            var lot = da.Lots.Get(roommateLot.lot_id);
-                		    if (lot != null) loc = (uint)lot.location;
-       		         	}
-        		        else
-   		             	{
-        		            var ownedLot = ownedLots.FirstOrDefault();
-                		    if (ownedLot != null) loc = (uint)ownedLot.location;
-         		     	}
-         		}
 
-			var targetLot = da.Lots.GetByLocation(Context.ShardId, loc);
-			int targetLotId = targetLot?.lot_id ?? 0;
-			var ownedLotIds = new HashSet<int>(ownedLots.Select(l => l.lot_id));
+            // If no location was sent in packet, attempt to resolve target lot
+            if (loc == 0)
+            {
+                var ownedLot = ownedLots.FirstOrDefault();
+                if (ownedLot != null) loc = (uint)ownedLot.location;
+            }
 
-			var lotr = myLots.FirstOrDefault(x =>
-			    (targetLotId != 0 && x.lot_id == targetLotId) ||
-			    ownedLotIds.Contains(x.lot_id)
-			);
+            var targetLot = da.Lots.GetByLocation(Context.ShardId, loc);
+            int targetLotId = targetLot?.lot_id ?? 0;
+
+            // Match roommate entry explicitly to the target lot ID
+            var lotr = myLots.FirstOrDefault(x => targetLotId != 0 && x.lot_id == targetLotId);
 
                         if (packet.Type == ChangeRoommateType.INVITE)
                         {
@@ -199,10 +187,11 @@ namespace FSO.Server.Servers.City.Handlers
 //                                return;
 //                            }
 			    DbLot lot = targetLot;
-				if (lot == null && lotr != null)
+
+				if (lot == null)
 				{
-				    var resolved = da.Lots.Get(lotr.lot_id);
-				    if (resolved != null) lot = resolved;
+				    Status(session, ChangeRoommateResponseStatus.LOT_DOESNT_EXIST);
+				    return;
 				}
 
 				if (lot == null)

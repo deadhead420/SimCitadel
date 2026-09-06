@@ -264,6 +264,8 @@ namespace FSO.Server.Servers.City.Handlers
 
                 try
                 {
+		    db.Roommates.DemotePrimaryRoommate(session.AvatarId);
+			
                     lotId = db.Lots.Create(new DbLot
                     {
                         name = name,

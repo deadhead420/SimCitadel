@@ -199,7 +199,7 @@ namespace FSO.Server.Servers.City.Handlers
 //                                return;
 //                            }
 			    DbLot lot = targetLot;
-				if (lotr != null)
+				if (lot == null && lotr != null)
 				{
 				    var resolved = da.Lots.Get(lotr.lot_id);
 				    if (resolved != null) lot = resolved;
@@ -233,13 +233,13 @@ namespace FSO.Server.Servers.City.Handlers
                             }
                             //create roommate request in database
 
-                            if (!da.Roommates.Create(new DbRoommate
-                            {
-                                avatar_id = packet.AvatarId,
-                                lot_id = lotr.lot_id,
-                                is_pending = 1,
-                                permissions_level = 0
-                            }))
+			    if (!da.Roommates.Create(new DbRoommate
+			    {
+			        avatar_id = packet.AvatarId,
+			        lot_id = lot.lot_id,
+			        is_pending = 1,
+			        permissions_level = 0
+			    }))
                             {
                                 Status(session, ChangeRoommateResponseStatus.UNKNOWN);
                                 return;

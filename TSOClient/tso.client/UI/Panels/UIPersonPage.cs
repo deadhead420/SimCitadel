@@ -1120,28 +1120,28 @@ namespace FSO.Client.UI.Panels
 
 	private void InviteButton_OnButtonClick(UIElement button)
 	{
-	    if (CurrentAvatar.Value != null)
-	    {
-	        uint currentLotId = MyLot?.Value?.Lot_Id ?? 0;
+   	 if (CurrentAvatar.Value != null)
+   	 {
+   	     uint currentLotLocation = (uint)(MyLot?.Value?.location ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
 
-	        FindController<PersonPageController>().ChangeRoommate(
-	            ChangeRoommateType.INVITE,
-	            CurrentAvatar.Value.Avatar_Id,
-	            currentLotId
-	        );
-	    }
+   	     FindController<PersonPageController>().ChangeRoommate(
+   	         ChangeRoommateType.INVITE,
+   	         CurrentAvatar.Value.Avatar_Id,
+   	         currentLotLocation
+   	     );
+   	 }
 	}
 
 	private void KickOutButton_OnButtonClick(UIElement button)
 	{
 	    if (CurrentAvatar.Value != null)
 	    {
-	        uint currentLotId = MyLot?.Value?.Lot_Id ?? 0;
+	        uint currentLotLocation = (uint)(MyLot?.Value?.location ?? MyAvatar.Value?.Avatar_LotGridXY ?? 0);
 
 	        FindController<PersonPageController>().ChangeRoommate(
 	            ChangeRoommateType.KICK,
 	            CurrentAvatar.Value.Avatar_Id,
-	            currentLotId
+	            currentLotLocation
 	        );
 	    }
 	}

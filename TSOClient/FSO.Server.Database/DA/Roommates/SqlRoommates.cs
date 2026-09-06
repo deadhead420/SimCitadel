@@ -73,12 +73,5 @@ namespace FSO.Server.Database.DA.Roommates
             return Context.Connection.Execute("UPDATE fso_roommates SET permissions_level = @level WHERE avatar_id = @avatar_id AND lot_id = @lot_id",
                 new { level = level, avatar_id = avatar_id, lot_id = lot_id }) > 0;
         }
-	public bool DemotePrimaryRoommate(uint avatarId)
-        {
-            return Context.Connection.Execute(
-                "UPDATE fso_roommates SET permissions_level = 1 WHERE avatar_id = @avatar_id AND permissions_level = 2;",
-                new { avatar_id = avatarId }
-            ) > 0;
-        }
     }
 }

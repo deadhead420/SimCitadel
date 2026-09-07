@@ -19,6 +19,7 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace FSO.Client.Controllers
 {
@@ -304,33 +305,39 @@ namespace FSO.Client.Controllers
             }
         }
 
-        public void MoveMeOut(uint target_lot, Callback<bool> onResult)
-        {
-            RoommateProtocol.OnMoveoutResult = onResult;
-            Network.CityClient.Write(new ChangeRoommateRequest()
-            {
-                Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
-                AvatarId = Network.MyCharacter,
-		// Retrieve all associated lot points for the active avatar
-		List<Point> housePoints = new List<Point>();
+	public void MoveMeOut(uint target_lot, Callback<bool> onResult)
+	{
+	    RoommateProtocol.OnMoveoutResult = onResult;
 
-		// Example: Add primary lot coordinates using PurchaseLotRegulator / target lot data
-		if (avatar.LotLocation.HasValue)
-		{
-		    // Map avatar lot location or target_lot X/Y coordinates
-		    housePoints.Add(new Point((int)target_lot_x, (int)target_lot_y));
-		}
+	    Network.CityClient.Write(new ChangeRoommateRequest()
+	    {
+	        Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
+	        AvatarId = Network.MyCharacter,
+	        LotLocation = target_lot
+	    });
+	}
 
-		// Add roommate lot coordinates if available
-		foreach (var roommateLot in avatar.RoommateLots)
-		{
-		    housePoints.Add(new Point(roommateLot.X, roommateLot.Y));
-		}
+	public void RefreshHouseWaypoints()
+	{
+	    if (DataService == null || Network.MyCharacter == 0) return;
 
-		// Push to the UI screen
-		view.SetHouseWaypoints(housePoints);
-            });
-        }
+	    DataService.Get<Avatar>(Network.MyCharacter).ContinueWith(task =>
+	    {
+	        if (task.IsFaulted || task.Result == null) return;
+
+	        var avatar = task.Result;
+	        var lotIds = new List<uint>();
+
+	        // Add primary lot ID if valid
+	        if (avatar.Avatar_LotGridXY != 0 && avatar.Avatar_LotGridXY != uint.MaxValue)
+	        {
+	            lotIds.Add(avatar.Avatar_LotGridXY);
+	        }
+
+	        // Pass the lot IDs to the screen UI on the main thread / view handle
+	        Screen?.SetHouseWaypoints(lotIds);
+	    });
+	}
 
         public void GetAvatarModel(uint key, Callback<Avatar> callback)
         {

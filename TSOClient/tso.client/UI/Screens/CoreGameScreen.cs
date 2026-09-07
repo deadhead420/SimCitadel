@@ -349,27 +349,26 @@ namespace FSO.Client.UI.Screens
             });
         }
 	
-	public void SetHouseWaypoints(IEnumerable<Point> lotCoordinates)
+	public void SetHouseWaypoints(IEnumerable<uint> lotIds)
 	{
-	    // Clear existing house markers from UI container
+	    // Remove existing waypoints from UI container
 	    foreach (var wp in HouseWaypoints)
 	    {
 	        Remove(wp);
 	    }
 	    HouseWaypoints.Clear();
 
-	    if (lotCoordinates == null) return;
+	    if (lotIds == null) return;
 
-	    foreach (var pos in lotCoordinates)
+	    foreach (var lotId in lotIds)
 	    {
 	        var houseWp = new UIMapWaypoint(UIMapWaypoint.UIMapWaypointStyle.YourHouseHere)
 	        {
-	            TileX = pos.X,
-	            TileY = pos.Y
+	            LotId = lotId
 	        };
 
 	        HouseWaypoints.Add(houseWp);
-	        AddAt(2, houseWp);
+	        AddAt(2, houseWp); // Add to map overlay layer
 	    }
 	}
 

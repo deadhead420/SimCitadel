@@ -435,35 +435,62 @@ namespace FSO.Client.UI.Controls.Catalog
             return null;
         }
 
-        // 1. Try standard CatalogStringsID BMP
-        var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-        if (bmp != null)
+        Texture2D icon = null;
+        ushort resID = obj.OBJ.CatalogStringsID;
+
+        // 1. Try CatalogStringsID across BMP, SPR, and SPR2
+        if (resID != 0)
         {
-            IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
-        }
-        else
-        {
-            // 2. Try SPR (Sprite) resource
-            var spr = obj.Resource.Get<SPR>(obj.OBJ.CatalogStringsID);
-            if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
+            var bmp = obj.Resource.Get<BMP>(resID);
+            if (bmp != null)
             {
-                IconCache[GUID] = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
             }
             else
             {
-                // 3. Try SPR2 (Sprite2) resource separately
-                var spr2 = obj.Resource.Get<SPR2>(obj.OBJ.CatalogStringsID);
-                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+                var spr = obj.Resource.Get<SPR>(resID);
+                if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
                 {
-                    IconCache[GUID] = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                    icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
                 }
                 else
                 {
-                    // 4. Default back to null if no valid sprite/bitmap chunk is found
-                    IconCache[GUID] = null;
+                    var spr2 = obj.Resource.Get<SPR2>(resID);
+                    if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+                    {
+                        icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                    }
                 }
             }
         }
+
+        // 2. Fallback: Grab the first available SPR, SPR2, or BMP from the object's resource package
+        if (icon == null)
+        {
+            var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault();
+            if (firstSpr != null && firstSpr.Frames != null && firstSpr.Frames.Count > 0)
+            {
+                icon = firstSpr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+            }
+            else
+            {
+                var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault();
+                if (firstSpr2 != null && firstSpr2.Frames != null && firstSpr2.Frames.Length > 0)
+                {
+                    icon = firstSpr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                }
+                else
+                {
+                    var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
+                    if (firstBmp != null)
+                    {
+                        icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
+                    }
+                }
+            }
+        }
+
+        IconCache[GUID] = icon;
     }
     return IconCache[GUID];
 }

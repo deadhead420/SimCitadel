@@ -68,49 +68,33 @@ namespace FSO.Client.UI.Controls.Catalog
         public override void Draw(UISpriteBatch batch)
         {
             if (!Visible) return;
-
             if (Icon != null)
             {
                 if (Icon.Width / Icon.Height > 2)
                 {
-                    // Special 4-state button icon strip
+                    //special button
                     DrawLocalTexture(batch, Icon, new Rectangle((!Disabled && (Active || Hovered)) ? Icon.Width / 4 : 0, 0, Icon.Width / 4, Icon.Height), new Vector2(2, 2));
                 }
                 else
                 {
                     DrawLocalTexture(batch, Background, new Vector2(0, 0));
-
-                    // Static single-frame check: Tall, square, or width not matching a 2:1 state strip
-                    bool isStaticIcon = (Icon.Height > 48 || Icon.Width == Icon.Height || Icon.Width != Icon.Height * 2);
-
-                    if (isStaticIcon)
+                    if (Icon.Height > 48 || Icon.Width == Icon.Height) //poor mans way of saying "special icon" eg floors
                     {
                         float scale = 37.0f / Math.Max(Icon.Height, Icon.Width);
-                        if (scale > 1.0f) scale = 1.0f;
-
-                        Vector2 offset = new Vector2(
-                            2 + ((37 - Icon.Width * scale) / 2),
-                            2 + ((37 - Icon.Height * scale) / 2)
-                        );
-
-                        DrawLocalTexture(batch, Icon, new Rectangle(0, 0, Icon.Width, Icon.Height), offset, new Vector2(scale, scale));
+                        DrawLocalTexture(batch, Icon, new Rectangle(0, 0, Icon.Width, Icon.Height), new Vector2(2 + ((37 - Icon.Width * scale) / 2), 2 + ((37 - Icon.Height * scale) / 2)), new Vector2(scale, scale));
                     }
                     else
-                    {
-                        // Standard 2-frame UI button strip (Width is exactly 2x Height)
                         DrawLocalTexture(batch, Icon, new Rectangle((!Disabled && (Active || Hovered)) ? Icon.Width / 2 : 0, 0, Icon.Width / 2, Icon.Height), new Vector2(2, 2));
-                    }
                 }
-            }
-            else
+            } else
             {
                 DrawLocalTexture(batch, Background, new Vector2(0, 0));
             }
 
-	    if (Info.Count != null)
+            if (Info.Count != null)
             {
-                // Draw the count on top of the icon
-                DrawLocalString(batch, "x" + Info.Count.Value.ToString(), new Vector2(0, 22 + 9), CountStyle, new Rectangle(0, 0, 39, 1), TextAlignment.Right | TextAlignment.Middle);
+                //draw the count on top of the icon
+                DrawLocalString(batch, "x"+Info.Count.Value.ToString(), new Vector2(0, 22 + 9), CountStyle, new Rectangle(0, 0, 39, 1), TextAlignment.Right | TextAlignment.Middle);
             }
         }
 

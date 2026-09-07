@@ -394,7 +394,6 @@ namespace FSO.Client.UI.Controls.Catalog
             {
                 var sel = Filtered[index++];
                 var elem = new UICatalogItem(false);
-                if (sel.Item.GUID == uint.MaxValue) elem.Visible = false;
                 elem.Index = index-1;
                 elem.Info = sel;
                 elem.Info.CalcPrice = (int)elem.Info.Item.Price;
@@ -440,14 +439,13 @@ namespace FSO.Client.UI.Controls.Catalog
 
     if (obj == null)
     {
-        // DO NOT cache null here; returning null allows it to try again if loaded later
+        // DO NOT cache null here so missing/placeholder items don't lock blank
         return null;
     }
 
     Texture2D icon = null;
 
-    // Standard catalog icon chunk IDs
-    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, obj.OBJ.CatalogStringsID };
+    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, obj.OBJ?.CatalogStringsID ?? 0 };
 
     foreach (var id in candidateIDs)
     {

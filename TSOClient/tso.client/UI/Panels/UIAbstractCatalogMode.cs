@@ -272,7 +272,7 @@ namespace FSO.Client.UI.Panels
             }
             else
             {
-                BuyItem = LotController.vm.Context.CreateObjectInstance(item.Item.GUID, LotTilePos.OUT_OF_WORLD, Direction.NORTH, true);
+                BuyItem = LotController.vm.Context.CreateObjectInstance(item.Item.GUID, LotTilePos.OUT_OF_WORLD, Direction.SOUTH, true);
                 if (item.Attributes != null)
                 {
                     for (int i = 0; i < item.Attributes.Count; i++) {

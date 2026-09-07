@@ -63,8 +63,8 @@ jobs:
 
     - name: Restore Roslyn SDK Project
       run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
-
-      - name: Restore Legacy NuGet Packages (Parallelized)
+    
+    - name: Restore Legacy NuGet Packages (Parallelized)
       shell: pwsh
       run: |
         # Search source directories, filtering out build outputs, git folders, and mobile projects

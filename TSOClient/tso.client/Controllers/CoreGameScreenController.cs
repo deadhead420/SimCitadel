@@ -311,7 +311,24 @@ namespace FSO.Client.Controllers
             {
                 Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
                 AvatarId = Network.MyCharacter,
-                LotLocation = target_lot
+		// Retrieve all associated lot points for the active avatar
+		List<Point> housePoints = new List<Point>();
+
+		// Example: Add primary lot coordinates using PurchaseLotRegulator / target lot data
+		if (avatar.LotLocation.HasValue)
+		{
+		    // Map avatar lot location or target_lot X/Y coordinates
+		    housePoints.Add(new Point((int)target_lot_x, (int)target_lot_y));
+		}
+
+		// Add roommate lot coordinates if available
+		foreach (var roommateLot in avatar.RoommateLots)
+		{
+		    housePoints.Add(new Point(roommateLot.X, roommateLot.Y));
+		}
+
+		// Push to the UI screen
+		view.SetHouseWaypoints(housePoints);
             });
         }
 

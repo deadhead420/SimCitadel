@@ -6,9 +6,20 @@ on:
   pull_request:
     branches: [ master, main ]
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target component to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+        - both
+        - client
+        - server
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  BUILD_TARGET: ${{ github.event.inputs.target || 'both' }}
 
 jobs:
   build:
@@ -37,7 +48,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
+    - name: Cache Legacy Reference Assemblies
+      id: cache-ref-asms
+      uses: actions/cache@v4
+      with:
+        path: C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework
+        key: ${{ runner.os }}-ref-asms-net45-net461
+
     - name: Provision Legacy Reference Assemblies
+      if: steps.cache-ref-asms.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
         nuget install Microsoft.NETFramework.ReferenceAssemblies.net45 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
@@ -63,41 +82,32 @@ jobs:
 
     - name: Restore Roslyn SDK Project
       run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
-    
+
     - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
-        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Build Client Project
+      if: env.BUILD_TARGET == 'both' || env.BUILD_TARGET == 'client'
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Build Server Project
+      if: env.BUILD_TARGET == 'both' || env.BUILD_TARGET == 'server'
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m
-
-    - name: Stage Artifacts
-      shell: pwsh
-      run: |
-        New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/client"
-        New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/artifacts/server"
-
-        if (Test-Path "./TSOClient/FSO.IDE/bin/Release") {
-          Copy-Item -Path "./TSOClient/FSO.IDE/bin/Release/*" -Destination "${{ github.workspace }}/artifacts/client/" -Recurse -Force
-        }
-        if (Test-Path "./TSOClient/FSO.Server.Core/bin/Release") {
-          Copy-Item -Path "./TSOClient/FSO.Server.Core/bin/Release/*" -Destination "${{ github.workspace }}/artifacts/server/" -Recurse -Force
-        }
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Upload Client Artifacts
+      if: (env.BUILD_TARGET == 'both' || env.BUILD_TARGET == 'client') && success()
       uses: actions/upload-artifact@v4
       with:
         name: FreeSOClient
-        path: ${{ github.workspace }}/artifacts/client/
+        path: ./TSOClient/FSO.IDE/bin/Release/
 
     - name: Upload Server Artifacts
+      if: (env.BUILD_TARGET == 'both' || env.BUILD_TARGET == 'server') && success()
       uses: actions/upload-artifact@v4
       with:
         name: FreeSOServer
-        path: ${{ github.workspace }}/artifacts/server/
+        path: ./TSOClient/FSO.Server.Core/bin/Release/

@@ -442,7 +442,7 @@ namespace FSO.Client.UI.Controls.Catalog
     ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
     ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID, 2000 };
 
-    // 1. Try standard BMP catalog thumbnails
+    // 1. Try standard BMP catalog thumbnails first
     foreach (var id in candidateIDs)
     {
         if (id == 0) continue;
@@ -451,14 +451,18 @@ namespace FSO.Client.UI.Controls.Catalog
             var bmp = obj.Resource.Get<BMP>(id);
             if (bmp != null)
             {
-                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-                if (icon != null) break;
+                var texture = bmp.GetTexture(GameFacade.GraphicsDevice);
+                if (texture != null)
+                {
+                    icon = ApplyChromaKey(texture);
+                    break;
+                }
             }
         }
         catch { }
     }
 
-    // 2. Fallback to SPR2 with chroma-key removal for missing BMPs
+    // 2. Fallback to SPR2 thumbnail frames if no valid BMP exists
     if (icon == null)
     {
         foreach (var id in candidateIDs)
@@ -470,11 +474,13 @@ namespace FSO.Client.UI.Controls.Catalog
                 var spr2 = obj.Resource.Get<SPR2>(id);
                 if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
                 {
-                    var rawTexture = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                    // Frame 0 is often collision/mask data; try frame 1 or 0
+                    int frameIdx = spr2.Frames.Length > 1 ? 1 : 0;
+                    var rawTexture = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
                     if (rawTexture != null)
                     {
                         icon = ApplyChromaKey(rawTexture);
-                        if (icon != null) break;
+                        break;
                     }
                 }
             }
@@ -499,26 +505,29 @@ private Texture2D ApplyChromaKey(Texture2D source)
         int width = source.Width;
         int height = source.Height;
 
-        // Allocate fresh Color array to pull decompressed ARGB pixel data
         Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[width * height];
         source.GetData(pixels);
+
+        bool modified = false;
 
         for (int i = 0; i < pixels.Length; i++)
         {
             var p = pixels[i];
 
-            // Match all variants of yellow background keying (#FFFF00, #FFFF02, etc.)
-            // as well as pure magenta keying (#FF00FF)
-            bool isYellowKey = (p.R > 180 && p.G > 180 && p.B < 80);
-            bool isMagentaKey = (p.R > 180 && p.G < 80 && p.B > 180);
+            // Match bright yellows (R > 160, G > 160, B < 100)
+            // and bright magentas/pinks (R > 160, G < 100, B > 160)
+            bool isYellowKey = (p.R > 160 && p.G > 160 && p.B < 100);
+            bool isMagentaKey = (p.R > 160 && p.G < 100 && p.B > 160);
 
             if (isYellowKey || isMagentaKey)
             {
                 pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
+                modified = true;
             }
         }
 
-        // Always create a new, uncompressed SurfaceFormat.Color texture for UI drawing
+        if (!modified) return source;
+
         Texture2D cleanTexture = new Texture2D(
             GameFacade.GraphicsDevice,
             width,

@@ -408,19 +408,7 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-		Texture2D itemIcon = null;
-		
-		if (elem.Info.Special?.Res != null)
-		{
-		    itemIcon = elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID);
-		}
-
-		if (itemIcon == null && elem.Info.Item.GUID != 0)
-		{
-		    itemIcon = GetObjIcon(elem.Info.Item.GUID);
-		}
-
-		elem.Icon = itemIcon;
+                elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;
                 elem.Y = (i / halfPage) * 45 + 2;
@@ -437,116 +425,21 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-
-	public Texture2D GetObjIcon(uint GUID)
-{
-    if (GUID == 0) return null;
-
-    if (!IconCache.ContainsKey(GUID))
-    {
-        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-        if (obj == null)
+        public Texture2D GetObjIcon(uint GUID)
         {
-            IconCache[GUID] = null;
-            return null;
-        }
-
-        Texture2D icon = null;
-
-        // 1. Check for standard embedded BMP thumbnail
-        try
-        {
-            ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
-            var bmp = obj.Resource.Get<BMP>(stringsID);
-            if (bmp != null)
-            {
-                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-            }
-        }
-        catch { }
-
-        // 2. Fall back to SPR2 world sprite frame if no BMP thumbnail exists
-        if (icon == null)
-        {
-            try
-            {
-                var spr2s = obj.Resource.List<SPR2>();
-                if (spr2s != null && spr2s.Count > 0)
+            if (!IconCache.ContainsKey(GUID)) {
+                var obj = Content.Content.Get().WorldObjects.Get(GUID);
+                if (obj == null)
                 {
-                    var targetSpr = spr2s.FirstOrDefault(s => s.ChunkID == 100 || s.ChunkID == 1000) ?? spr2s[0];
-                    if (targetSpr != null && targetSpr.Frames != null && targetSpr.Frames.Length > 0)
-                    {
-                        var rawTexture = targetSpr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-                        if (rawTexture != null)
-                        {
-                            icon = CreateCatalogStripFromSPR2(rawTexture);
-                        }
-                    }
+                    IconCache[GUID] = null;
+                    return null;
                 }
+                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+                else IconCache[GUID] = null;
             }
-            catch { }
+            return IconCache[GUID];
         }
-
-        IconCache[GUID] = icon;
-    }
-
-    return IconCache[GUID];
-}
-
-private Texture2D CreateCatalogStripFromSPR2(Texture2D source)
-{
-    if (source == null || source.IsDisposed) return null;
-
-    try
-    {
-        int w = source.Width;
-        int h = source.Height;
-
-        Microsoft.Xna.Framework.Color[] srcPixels = new Microsoft.Xna.Framework.Color[w * h];
-        source.GetData(srcPixels);
-
-        // 2-state strip (Inactive | Hover) to keep UICatalogItem line 87 from splitting single frames
-        Microsoft.Xna.Framework.Color[] stripPixels = new Microsoft.Xna.Framework.Color[(w * 2) * h];
-
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                var p = srcPixels[y * w + x];
-
-                // Palette Index 0 Key: Clear yellow background while leaving porcelain white untouched
-                // Green > Blue * 1.3 catches the pale yellow/green key shades without touching neutral whites/grays
-                bool isYellowBackground = (p.R > 120 && p.G > 120 && p.G > (p.B * 1.35f));
-                bool isMagentaBackground = (p.R > 150 && p.B > 150 && p.G < 100);
-
-                if (isYellowBackground || isMagentaBackground)
-                {
-                    p = Microsoft.Xna.Framework.Color.Transparent;
-                }
-
-                // Left frame (Inactive)
-                stripPixels[y * (w * 2) + x] = p;
-                // Right frame (Hover/Active)
-                stripPixels[y * (w * 2) + (x + w)] = p;
-            }
-        }
-
-        Texture2D strip = new Texture2D(
-            GameFacade.GraphicsDevice,
-            w * 2,
-            h,
-            false,
-            SurfaceFormat.Color
-        );
-
-        strip.SetData(stripPixels);
-        return strip;
-    }
-    catch
-    {
-        return source;
-    }
-}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

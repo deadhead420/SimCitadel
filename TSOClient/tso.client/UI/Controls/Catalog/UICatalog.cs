@@ -428,50 +428,59 @@ namespace FSO.Client.UI.Controls.Catalog
 
 	public Texture2D GetObjIcon(uint GUID)
 {
-    if (!IconCache.ContainsKey(GUID)) {
-        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-        if (obj == null)
+    if (GUID == 0) return null;
+
+    if (IconCache.TryGetValue(GUID, out Texture2D cachedIcon) && cachedIcon != null)
+    {
+        return cachedIcon;
+    }
+
+    // Direct lookup on WorldObjects
+    var obj = Content.Content.Get().WorldObjects.Get(GUID);
+
+    if (obj == null)
+    {
+        // DO NOT cache null here; returning null allows it to try again if loaded later
+        return null;
+    }
+
+    Texture2D icon = null;
+
+    // Standard catalog icon chunk IDs
+    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, obj.OBJ.CatalogStringsID };
+
+    foreach (var id in candidateIDs)
+    {
+        if (id == 0) continue;
+
+        var bmp = obj.Resource.Get<BMP>(id);
+        if (bmp != null)
         {
-            IconCache[GUID] = null;
-            return null;
+            icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+            break;
         }
 
-        Texture2D icon = null;
-
-        // 1. Try standard catalog icon chunk IDs (100 is standard catalog thumbnail in TS1/TSO)
-        ushort[] iconIDs = new ushort[] { 100, 1000, obj.OBJ.CatalogStringsID };
-
-        foreach (var id in iconIDs)
+        var spr = obj.Resource.Get<SPR>(id);
+        if (spr != null && spr.Frames != null && spr.Frames.Count == 1)
         {
-            if (id == 0) continue;
-
-            // Check BMP format
-            var bmp = obj.Resource.Get<BMP>(id);
-            if (bmp != null)
-            {
-                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-                break;
-            }
-
-            // Check single-frame SPR/SPR2 (Catalog icons are 1 frame, world sheets have multiple frames)
-            var spr = obj.Resource.Get<SPR>(id);
-            if (spr != null && spr.Frames != null && spr.Frames.Count == 1)
-            {
-                icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-                break;
-            }
-
-            var spr2 = obj.Resource.Get<SPR2>(id);
-            if (spr2 != null && spr2.Frames != null && spr2.Frames.Length == 1)
-            {
-                icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-                break;
-            }
+            icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+            break;
         }
 
+        var spr2 = obj.Resource.Get<SPR2>(id);
+        if (spr2 != null && spr2.Frames != null && spr2.Frames.Length == 1)
+        {
+            icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+            break;
+        }
+    }
+
+    if (icon != null)
+    {
         IconCache[GUID] = icon;
     }
-    return IconCache[GUID];
+
+    return icon;
 }
 
         private class CatalogSorter : IComparer<UICatalogElement>

@@ -103,6 +103,7 @@ namespace FSO.Client.Controllers
                         Screen.InitializeLot();
                         Screen.vm.MyUID = Network.MyCharacter;
                         //initialize a lot
+			RefreshHouseWaypoints();
                         break;
                     case "LotCommandStream":
                         //forward the command to the VM
@@ -305,18 +306,6 @@ namespace FSO.Client.Controllers
             }
         }
 
-	public void MoveMeOut(uint target_lot, Callback<bool> onResult)
-	{
-	    RoommateProtocol.OnMoveoutResult = onResult;
-
-	    Network.CityClient.Write(new ChangeRoommateRequest()
-	    {
-	        Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
-	        AvatarId = Network.MyCharacter,
-	        LotLocation = target_lot
-	    });
-	}
-
 	public void RefreshHouseWaypoints()
 	{
 	    if (DataService == null || Network.MyCharacter == 0) return;
@@ -328,15 +317,32 @@ namespace FSO.Client.Controllers
 	        var avatar = task.Result;
 	        var lotIds = new List<uint>();
 
-	        // Add primary lot ID if valid
 	        if (avatar.Avatar_LotGridXY != 0 && avatar.Avatar_LotGridXY != uint.MaxValue)
 	        {
 	            lotIds.Add(avatar.Avatar_LotGridXY);
 	        }
 
-	        // Pass the lot IDs to the screen UI on the main thread / view handle
-	        Screen?.SetHouseWaypoints(lotIds);
+	        // Dispatch back to the main UI thread via GameThread
+		GameThread.NextUpdate(x =>
+	        {
+	            Screen?.SetHouseWaypoints(lotIds);
+	        });
 	    });
+	}
+
+	public void MoveMeOut(uint target_lot, Callback<bool> onResult)
+	{
+	    RoommateProtocol.OnMoveoutResult = onResult;
+
+	    Network.CityClient.Write(new ChangeRoommateRequest()
+	    {
+	        Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
+	        AvatarId = Network.MyCharacter,
+	        LotLocation = target_lot
+	    });
+
+	    // Refresh map waypoints to reflect lot changes
+	    RefreshHouseWaypoints();
 	}
 
         public void GetAvatarModel(uint key, Callback<Avatar> callback)

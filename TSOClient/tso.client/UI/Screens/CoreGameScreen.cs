@@ -351,7 +351,7 @@ namespace FSO.Client.UI.Screens
 	
 	public void SetHouseWaypoints(IEnumerable<uint> lotIds)
 	{
-	    // Remove existing waypoints from UI container
+	    // Remove existing house waypoints
 	    foreach (var wp in HouseWaypoints)
 	    {
 	        Remove(wp);
@@ -362,13 +362,15 @@ namespace FSO.Client.UI.Screens
 
 	    foreach (var lotId in lotIds)
 	    {
+	        if (lotId == 0 || lotId == uint.MaxValue) continue;
+
 	        var houseWp = new UIMapWaypoint(UIMapWaypoint.UIMapWaypointStyle.YourHouseHere)
 	        {
 	            LotId = lotId
 	        };
 
 	        HouseWaypoints.Add(houseWp);
-	        AddAt(2, houseWp); // Add to map overlay layer
+	        AddAt(2, houseWp);
 	    }
 	}
 

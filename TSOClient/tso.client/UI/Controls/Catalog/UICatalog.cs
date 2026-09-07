@@ -436,8 +436,38 @@ namespace FSO.Client.UI.Controls.Catalog
             return null;
         }
 
-        // Delegate icon extraction directly to the game object's native resource handler
-        Texture2D icon = obj.GetIcon(GameFacade.GraphicsDevice, 0);
+        Texture2D icon = null;
+
+        // 1. Try standard catalog icon chunk IDs (100 is standard catalog thumbnail in TS1/TSO)
+        ushort[] iconIDs = new ushort[] { 100, 1000, obj.OBJ.CatalogStringsID };
+
+        foreach (var id in iconIDs)
+        {
+            if (id == 0) continue;
+
+            // Check BMP format
+            var bmp = obj.Resource.Get<BMP>(id);
+            if (bmp != null)
+            {
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                break;
+            }
+
+            // Check single-frame SPR/SPR2 (Catalog icons are 1 frame, world sheets have multiple frames)
+            var spr = obj.Resource.Get<SPR>(id);
+            if (spr != null && spr.Frames != null && spr.Frames.Count == 1)
+            {
+                icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                break;
+            }
+
+            var spr2 = obj.Resource.Get<SPR2>(id);
+            if (spr2 != null && spr2.Frames != null && spr2.Frames.Length == 1)
+            {
+                icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                break;
+            }
+        }
 
         IconCache[GUID] = icon;
     }

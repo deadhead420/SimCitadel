@@ -437,8 +437,6 @@ namespace FSO.Client.UI.Controls.Catalog
         }
 
         Texture2D icon = null;
-
-        // Dedicated catalog resource IDs in TS1/TSO packages
         ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
 
         // 1. Explicit 2D BMP catalog icons
@@ -478,7 +476,7 @@ namespace FSO.Client.UI.Controls.Catalog
             }
         }
 
-        // 3. Fallback: Scan package SPR/SPR2/BMP lists
+        // 3. General Fallback
         if (icon == null)
         {
             var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();

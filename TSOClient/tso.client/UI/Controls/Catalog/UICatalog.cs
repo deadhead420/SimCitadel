@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
 using FSO.Content;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using FSO.Files.Formats.IFF.Chunks;
 using FSO.Client.UI.Panels.LotControls;
@@ -441,7 +442,7 @@ namespace FSO.Client.UI.Controls.Catalog
         // Dedicated catalog resource IDs in TS1/TSO packages
         ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
 
-        // 1. Search candidate IDs for explicit 2D BMP catalog icons
+        // 1. Search candidates for explicit 2D BMP catalog icons (Static Image)
         foreach (var id in candidateIDs)
         {
             if (id == 0) continue;
@@ -453,7 +454,7 @@ namespace FSO.Client.UI.Controls.Catalog
             }
         }
 
-        // 2. Search candidate IDs for SPR / SPR2 assets (Frame 2 for 4-dir, else Frame 0)
+        // 2. Search candidate IDs for SPR / SPR2 assets
         if (icon == null)
         {
             foreach (var id in candidateIDs)
@@ -463,8 +464,10 @@ namespace FSO.Client.UI.Controls.Catalog
                 var spr = obj.Resource.Get<SPR>(id);
                 if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
                 {
+                    // Force index 0 or 2, but copy to a static 1-frame texture reference
                     int frameIdx = (spr.Frames.Count >= 4) ? 2 : 0;
-                    icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    var baseTex = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    icon = CopyStaticTexture(baseTex);
                     break;
                 }
 
@@ -472,7 +475,8 @@ namespace FSO.Client.UI.Controls.Catalog
                 if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
                 {
                     int frameIdx = (spr2.Frames.Length >= 4) ? 2 : 0;
-                    icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    var baseTex = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    icon = CopyStaticTexture(baseTex);
                     break;
                 }
             }
@@ -481,26 +485,28 @@ namespace FSO.Client.UI.Controls.Catalog
         // 3. General Fallback: Scan package SPR/SPR2/BMP lists
         if (icon == null)
         {
-            var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count > 0);
-            if (firstSpr != null)
+            var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
+            if (firstBmp != null)
             {
-                int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
-                icon = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
             }
             else
             {
-                var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Length > 0);
-                if (firstSpr2 != null)
+                var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count > 0);
+                if (firstSpr != null)
                 {
-                    int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
-                    icon = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
+                    var baseTex = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    icon = CopyStaticTexture(baseTex);
                 }
                 else
                 {
-                    var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
-                    if (firstBmp != null)
+                    var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Length > 0);
+                    if (firstSpr2 != null)
                     {
-                        icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
+                        int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
+                        var baseTex = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                        icon = CopyStaticTexture(baseTex);
                     }
                 }
             }
@@ -509,6 +515,18 @@ namespace FSO.Client.UI.Controls.Catalog
         IconCache[GUID] = icon;
     }
     return IconCache[GUID];
+}
+
+// Helper method to duplicate a single frame into a static independent Texture2D instance
+private Texture2D CopyStaticTexture(Texture2D source)
+{
+    if (source == null) return null;
+    Color[] data = new Color[source.Width * source.Height];
+    source.GetData(data);
+
+    Texture2D result = new Texture2D(GameFacade.GraphicsDevice, source.Width, source.Height);
+    result.SetData(data);
+    return result;
 }
 
         private class CatalogSorter : IComparer<UICatalogElement>

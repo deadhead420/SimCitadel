@@ -426,70 +426,81 @@ namespace FSO.Client.UI.Controls.Catalog
         }
 
 	public Texture2D GetObjIcon(uint GUID)
-	{
-	    if (!IconCache.ContainsKey(GUID)) {
-	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null)
-	        {
-	            IconCache[GUID] = null;
-	            return null;
-	        }
+{
+    if (!IconCache.ContainsKey(GUID)) {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
+        {
+            IconCache[GUID] = null;
+            return null;
+        }
 
-	        Texture2D icon = null;
-	        ushort resID = obj.OBJ.CatalogStringsID;
+        Texture2D icon = null;
+        ushort resID = obj.OBJ.CatalogStringsID;
 
-	        // 1. Try CatalogStringsID BMP first
-	        if (resID != 0)
-	        {
-	            var bmp = obj.Resource.Get<BMP>(resID);
-	            if (bmp != null)
-	            {
-	                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-	            }
-	        }
+        // 1. Try CatalogStringsID BMP first
+        if (resID != 0)
+        {
+            var bmp = obj.Resource.Get<BMP>(resID);
+            if (bmp != null)
+            {
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+            }
+            else
+            {
+                // Try CatalogStringsID SPR
+                var spr = obj.Resource.Get<SPR>(resID);
+                if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
+                {
+                    // TS1 catalog thumbnails with multiple angles put the catalog icon at the last frame
+                    int frameIdx = (spr.Frames.Count > 1) ? spr.Frames.Count - 1 : 0;
+                    icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                }
+                else
+                {
+                    // Try CatalogStringsID SPR2
+                    var spr2 = obj.Resource.Get<SPR2>(resID);
+                    if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+                    {
+                        int frameIdx = (spr2.Frames.Length > 1) ? spr2.Frames.Length - 1 : 0;
+                        icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    }
+                }
+            }
+        }
 
-	        // 2. Fallback: Check DGRP (Draw Group) catalog thumbnail resource
-	        if (icon == null)
-	        {
-	            var dgrp = obj.Resource.Get<DGRP>(resID != 0 ? resID : (ushort)1);
-	            if (dgrp == null)
-	            {
-	                // Grab first available DGRP chunk if explicit ID isn't found
-	                dgrp = obj.Resource.List<DGRP>()?.FirstOrDefault();
-	            }
+        // 2. Fallback: Search object resources for SPR / SPR2 / BMP
+        if (icon == null)
+        {
+            var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault();
+            if (firstSpr != null && firstSpr.Frames != null && firstSpr.Frames.Count > 0)
+            {
+                int frameIdx = (firstSpr.Frames.Count > 1) ? firstSpr.Frames.Count - 1 : 0;
+                icon = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+            }
+            else
+            {
+                var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault();
+                if (firstSpr2 != null && firstSpr2.Frames != null && firstSpr2.Frames.Length > 0)
+                {
+                    int frameIdx = (firstSpr2.Frames.Length > 1) ? firstSpr2.Frames.Length - 1 : 0;
+                    icon = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                }
+                else
+                {
+                    var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
+                    if (firstBmp != null)
+                    {
+                        icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
+                    }
+                }
+            }
+        }
 
-	            if (dgrp != null)
-	            {
-	                // Render thumbnail from DGRP using default catalog orientation
-	                icon = dgrp.GetIcon(GameFacade.GraphicsDevice, obj.Resource);
-	            }
-	        }
-
-	        // 3. Fallback: Standard SPR/SPR2 frame extraction if DGRP is absent
-	        if (icon == null)
-	        {
-	            var spr = obj.Resource.Get<SPR>(resID) ?? obj.Resource.List<SPR>()?.FirstOrDefault();
-	            if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
-	            {
-	                // Use last frame index for SPR assets as TS1 catalog thumbnails sit at the end
-	                int frameIdx = spr.Frames.Count - 1;
-	                icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-	            }
-	            else
-	            {
-	                var spr2 = obj.Resource.Get<SPR2>(resID) ?? obj.Resource.List<SPR2>()?.FirstOrDefault();
-	                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
-	                {
-	                    int frameIdx = spr2.Frames.Length - 1;
-	                    icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-	                }
-	            }
-	        }
-
-	        IconCache[GUID] = icon;
-	    }
-	    return IconCache[GUID];
-	}
+        IconCache[GUID] = icon;
+    }
+    return IconCache[GUID];
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

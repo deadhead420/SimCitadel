@@ -408,14 +408,14 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-		// Fetch special icon if available; otherwise fall back to GetObjIcon
 		Texture2D itemIcon = null;
+		
 		if (elem.Info.Special?.Res != null)
 		{
 		    itemIcon = elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID);
 		}
 
-		if (itemIcon == null && elem.Info.Item != null)
+		if (itemIcon == null && elem.Info.Item.GUID != 0)
 		{
 		    itemIcon = GetObjIcon(elem.Info.Item.GUID);
 		}

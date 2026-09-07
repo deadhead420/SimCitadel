@@ -7,6 +7,9 @@ on:
     branches: [ master, main ]
   workflow_dispatch:
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   build:
     runs-on: windows-2022
@@ -30,35 +33,57 @@ jobs:
         path: |
           ~/.nuget/packages
           ${{ github.workspace }}/TSOClient/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln', '**/*.config', '**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.config', '**/*.csproj') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
+
+    - name: Provision Legacy Reference Assemblies
+      shell: pwsh
+      run: |
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net45 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
+        nuget install Microsoft.NETFramework.ReferenceAssemblies.net461 -Version 1.0.3 -OutputDirectory "$env:RUNNER_TEMP\ref_asms"
+        
+        $net45Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net45.1.0.3\build\.NETFramework\v4.5"
+        $net461Path = "$env:RUNNER_TEMP\ref_asms\Microsoft.NETFramework.ReferenceAssemblies.net461.1.0.3\build\.NETFramework\v4.6.1"
+        
+        $sysDir = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework"
+        
+        New-Item -ItemType Directory -Force -Path "$sysDir\v4.5"
+        New-Item -ItemType Directory -Force -Path "$sysDir\v4.6.1"
+        
+        Copy-Item -Path "$net45Path\*" -Destination "$sysDir\v4.5\" -Recurse -Force
+        Copy-Item -Path "$net461Path\*" -Destination "$sysDir\v4.6.1\" -Recurse -Force
 
     - name: Generate MonoGame Projects via Protobuild
       shell: pwsh
       run: |
-        Set-Location ./Other/libs/FSOMonoGame/
+        cd ./Other/libs/FSOMonoGame/
         ./protobuild.exe --generate
-        Set-Location ../../../
+        cd ../../../
 
-    - name: Restore Solution NuGet Packages
+    - name: Restore Roslyn SDK Project
+      run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
+
+    - name: Restore All Legacy NuGet Packages
       shell: pwsh
       run: |
-        # Restoring at the solution level runs in parallel and avoids loop overhead
-        nuget restore ./TSOClient/FreeSO.sln -NonInteractive
+        Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
+          nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive
+        }
+      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
-        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Build Client Project
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Build Server Project
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
 
     - name: Stage Artifacts
       shell: pwsh

@@ -280,15 +280,15 @@ namespace FSO.Server.Servers.City.Handlers
                         description = ""
                     });
 
-		    // Fetch owned lots strictly for this avatar
-var ownedLots = db.Lots.GetByOwner(session.AvatarId);
+		    // 1. Fetch updated owned lots list (includes the newly created lot)
+            var ownedLots = db.Lots.GetByOwner(session.AvatarId);
 
-if (!packet.MayorMode && (ownedLots == null || ownedLots.Count <= 1))
-{
-    // Invalidate DataService caches so client models sync the avatar's new primary lot status
-    DataService.Invalidate<FSO.Common.DataService.Model.Lot>(packedLocation);
-    DataService.Invalidate<FSO.Common.DataService.Model.Avatar>(session.AvatarId);
-}
+            // 2. Determine primary lot status (first owned non-mayor lot)
+            bool isPrimary = !packet.MayorMode && (ownedLots != null && ownedLots.Count == 1);
+
+            // 3. Always invalidate DataService caches for ANY purchased lot (Primary OR Secondary)
+            DataService.Invalidate<FSO.Common.DataService.Model.Lot>(packedLocation);
+            DataService.Invalidate<FSO.Common.DataService.Model.Avatar>(session.AvatarId);
 
                     if (packet.MayorMode)
                     {

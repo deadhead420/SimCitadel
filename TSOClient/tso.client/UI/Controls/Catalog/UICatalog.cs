@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
 using FSO.Content;
-using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using FSO.Files.Formats.IFF.Chunks;
 using FSO.Client.UI.Panels.LotControls;
@@ -517,11 +516,10 @@ namespace FSO.Client.UI.Controls.Catalog
     return IconCache[GUID];
 }
 
-// Helper method to duplicate a single frame into a static independent Texture2D instance
 private Texture2D CopyStaticTexture(Texture2D source)
 {
     if (source == null) return null;
-    Color[] data = new Color[source.Width * source.Height];
+    Microsoft.Xna.Framework.Color[] data = new Microsoft.Xna.Framework.Color[source.Width * source.Height];
     source.GetData(data);
 
     Texture2D result = new Texture2D(GameFacade.GraphicsDevice, source.Width, source.Height);

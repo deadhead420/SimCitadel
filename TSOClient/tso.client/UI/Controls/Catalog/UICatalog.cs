@@ -425,21 +425,48 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-        public Texture2D GetObjIcon(uint GUID)
+	public Texture2D GetObjIcon(uint GUID)
+{
+    if (!IconCache.ContainsKey(GUID)) {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
         {
-            if (!IconCache.ContainsKey(GUID)) {
-                var obj = Content.Content.Get().WorldObjects.Get(GUID);
-                if (obj == null)
-                {
-                    IconCache[GUID] = null;
-                    return null;
-                }
-                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
-                else IconCache[GUID] = null;
-            }
-            return IconCache[GUID];
+            IconCache[GUID] = null;
+            return null;
         }
+
+        // 1. Try standard CatalogStringsID BMP
+        var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+        if (bmp != null)
+        {
+            IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+        }
+        else
+        {
+            // 2. Try SPR (Sprite) resource
+            var spr = obj.Resource.Get<SPR>(obj.OBJ.CatalogStringsID);
+            if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
+            {
+                IconCache[GUID] = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+            }
+            else
+            {
+                // 3. Try SPR2 (Sprite2) resource separately
+                var spr2 = obj.Resource.Get<SPR2>(obj.OBJ.CatalogStringsID);
+                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+                {
+                    IconCache[GUID] = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                }
+                else
+                {
+                    // 4. Default back to null if no valid sprite/bitmap chunk is found
+                    IconCache[GUID] = null;
+                }
+            }
+        }
+    }
+    return IconCache[GUID];
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

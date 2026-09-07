@@ -64,18 +64,20 @@ jobs:
     - name: Restore Roslyn SDK Project
       run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
 
-    - name: Restore Legacy NuGet Packages (Parallelized)
+      - name: Restore Legacy NuGet Packages (Parallelized)
       shell: pwsh
       run: |
-        # Only search source directories to avoid scanning bin, obj, git, and irrelevant paths
-        $projects = Get-ChildItem -Path ./TSOClient, ./Other/libs -Recurse -Filter *.csproj | 
-          Where-Object { $_.FullName -notmatch '\\(bin|obj|\.git)\\' }
+        # Search source directories, filtering out build outputs, git folders, and mobile projects
+        $projects = Get-ChildItem -Path ./TSOClient, ./Other/libs -Recurse -Filter *.csproj |
+          Where-Object {
+            $_.FullName -notmatch '\\(bin|obj|\.git)\\' -and
+            $_.Name -notmatch 'iOS|Droid|Android'
+          }
 
-        # Restore projects in parallel batches using PowerShell ThreadJobs
+        # Restore desktop/core dependencies in parallel
         $projects | ForEach-Object -Parallel {
           nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive -Verbosity quiet
         } -ThrottleLimit 8
-      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |

@@ -7,9 +7,6 @@ on:
     branches: [ master, main ]
   workflow_dispatch:
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-
 jobs:
   build:
     runs-on: windows-2022
@@ -19,7 +16,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
-        fetch-depth: 0
+        fetch-depth: 1
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
@@ -33,7 +30,7 @@ jobs:
         path: |
           ~/.nuget/packages
           ${{ github.workspace }}/TSOClient/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.config', '**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln', '**/*.config', '**/*.csproj') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
 
@@ -57,33 +54,31 @@ jobs:
     - name: Generate MonoGame Projects via Protobuild
       shell: pwsh
       run: |
-        cd ./Other/libs/FSOMonoGame/
+        Set-Location ./Other/libs/FSOMonoGame/
         ./protobuild.exe --generate
-        cd ../../../
+        Set-Location ../../../
 
-    - name: Restore Roslyn SDK Project
-      run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
-
-    - name: Restore All Legacy NuGet Packages
+    - name: Restore NuGet Packages
       shell: pwsh
       run: |
-        Get-ChildItem -Path . -Recurse -Filter *.csproj | ForEach-Object {
-          nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive
+        # Solution-level restore executes in parallel across projects
+        nuget restore ./TSOClient/FreeSO.sln -NonInteractive -Verbosity quiet
+        if (Test-Path "./Other/libs/Lidgren.Network/packages.config") {
+          nuget restore ./Other/libs/Lidgren.Network/packages.config -SolutionDirectory ./Other/libs/Lidgren.Network -NonInteractive -Verbosity quiet
         }
-      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU"
-        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Build Client Project
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Build Server Project
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU"
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
 
     - name: Stage Artifacts
       shell: pwsh

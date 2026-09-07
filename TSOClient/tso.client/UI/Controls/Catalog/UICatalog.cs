@@ -442,7 +442,7 @@ namespace FSO.Client.UI.Controls.Catalog
     ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
     ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID, 2000 };
 
-    // 1. First attempt: Standard BMP catalog images
+    // 1. Try standard BMP catalog thumbnails
     foreach (var id in candidateIDs)
     {
         if (id == 0) continue;
@@ -454,7 +454,7 @@ namespace FSO.Client.UI.Controls.Catalog
         }
     }
 
-    // 2. Second attempt: SPR2 fallback for objects without BMPs (e.g. CatalogStringsID == 2000)
+    // 2. Fallback to SPR2 with chroma-key removal for missing BMPs
     if (icon == null)
     {
         foreach (var id in candidateIDs)
@@ -464,10 +464,12 @@ namespace FSO.Client.UI.Controls.Catalog
             var spr2 = obj.Resource.Get<SPR2>(id);
             if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
             {
-                // Grab the first frame of the sprite
-                var frame = spr2.Frames[0];
-                icon = frame.GetTexture(GameFacade.GraphicsDevice);
-                if (icon != null) break;
+                var rawTexture = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                if (rawTexture != null)
+                {
+                    icon = ApplyChromaKey(rawTexture);
+                    break;
+                }
             }
         }
     }
@@ -478,6 +480,26 @@ namespace FSO.Client.UI.Controls.Catalog
     }
 
     return icon;
+}
+
+	private Texture2D ApplyChromaKey(Texture2D source)
+{
+    Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[source.Width * source.Height];
+    source.GetData(pixels);
+
+    for (int i = 0; i < pixels.Length; i++)
+    {
+        // Target pure yellow (#FFFF00) or magenta (#FF00FF) keying backgrounds
+        if ((pixels[i].R > 240 && pixels[i].G > 240 && pixels[i].B < 20) || 
+            (pixels[i].R > 240 && pixels[i].G < 20 && pixels[i].B > 240))
+        {
+            pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
+        }
+    }
+
+    Texture2D cleanTexture = new Texture2D(GameFacade.GraphicsDevice, source.Width, source.Height);
+    cleanTexture.SetData(pixels);
+    return cleanTexture;
 }
 
         private class CatalogSorter : IComparer<UICatalogElement>

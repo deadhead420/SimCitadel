@@ -441,7 +441,7 @@ namespace FSO.Client.UI.Controls.Catalog
         // Dedicated catalog resource IDs in TS1/TSO packages
         ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
 
-        // 1. Search candidates for explicit 2D BMP catalog icons (Static Image)
+        // 1. Search candidates for explicit 2D BMP catalog icons
         foreach (var id in candidateIDs)
         {
             if (id == 0) continue;
@@ -463,10 +463,9 @@ namespace FSO.Client.UI.Controls.Catalog
                 var spr = obj.Resource.Get<SPR>(id);
                 if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
                 {
-                    // Force index 0 or 2, but copy to a static 1-frame texture reference
                     int frameIdx = (spr.Frames.Count >= 4) ? 2 : 0;
                     var baseTex = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    icon = CopyStaticTexture(baseTex);
+                    icon = FlattenToStaticTexture(baseTex);
                     break;
                 }
 
@@ -475,7 +474,7 @@ namespace FSO.Client.UI.Controls.Catalog
                 {
                     int frameIdx = (spr2.Frames.Length >= 4) ? 2 : 0;
                     var baseTex = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    icon = CopyStaticTexture(baseTex);
+                    icon = FlattenToStaticTexture(baseTex);
                     break;
                 }
             }
@@ -496,7 +495,7 @@ namespace FSO.Client.UI.Controls.Catalog
                 {
                     int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
                     var baseTex = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    icon = CopyStaticTexture(baseTex);
+                    icon = FlattenToStaticTexture(baseTex);
                 }
                 else
                 {
@@ -505,7 +504,7 @@ namespace FSO.Client.UI.Controls.Catalog
                     {
                         int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
                         var baseTex = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                        icon = CopyStaticTexture(baseTex);
+                        icon = FlattenToStaticTexture(baseTex);
                     }
                 }
             }
@@ -516,15 +515,41 @@ namespace FSO.Client.UI.Controls.Catalog
     return IconCache[GUID];
 }
 
-private Texture2D CopyStaticTexture(Texture2D source)
+// Renders the single frame into an independent 2D surface to detach frame references and prevent crash
+private Texture2D FlattenToStaticTexture(Texture2D source)
 {
     if (source == null) return null;
-    Microsoft.Xna.Framework.Color[] data = new Microsoft.Xna.Framework.Color[source.Width * source.Height];
-    source.GetData(data);
 
-    Texture2D result = new Texture2D(GameFacade.GraphicsDevice, source.Width, source.Height);
-    result.SetData(data);
-    return result;
+    try
+    {
+        var device = GameFacade.GraphicsDevice;
+        RenderTarget2D renderTarget = new RenderTarget2D(
+            device,
+            source.Width,
+            source.Height,
+            false,
+            SurfaceFormat.Color,
+            DepthFormat.None
+        );
+
+        var sb = new SpriteBatch(device);
+
+        device.SetRenderTarget(renderTarget);
+        device.Clear(Microsoft.Xna.Framework.Color.Transparent);
+
+        sb.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend);
+        sb.Draw(source, Microsoft.Xna.Framework.Vector2.Zero, Microsoft.Xna.Framework.Color.White);
+        sb.End();
+
+        device.SetRenderTarget(null);
+
+        return renderTarget;
+    }
+    catch
+    {
+        // Fallback directly to source texture if GPU target allocation fails
+        return source;
+    }
 }
 
         private class CatalogSorter : IComparer<UICatalogElement>

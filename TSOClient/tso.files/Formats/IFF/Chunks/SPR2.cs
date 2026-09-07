@@ -327,11 +327,34 @@ namespace FSO.Files.Formats.IFF.Chunks
                 this.ZBufferData = new byte[numPixels];
             }
 
-            var palette = Parent.ChunkParent.Get<PALT>(this.PaletteID);
-            if (palette == null) palette = new PALT() { Colors = new Color[256] };
-            palette.References++;
-            var transparentPixel = palette.Colors[TransparentColorIndex];
-            transparentPixel.A = 0;
+	    var palette = Parent.ChunkParent.Get<PALT>(this.PaletteID);
+
+	// Fallback to global default palette (ID 100 or first PALT in IFF) if missing
+	if (palette == null)
+	{
+	    var palts = Parent.ChunkParent.List<PALT>();
+	    if (palts != null && palts.Count > 0)
+	    {
+	        palette = palts.FirstOrDefault(p => p.ChunkID == 100 || p.ChunkID == 1) ?? palts[0];
+	    }
+	}
+
+	// If still null, instantiate dummy palette with white opaque colors
+	if (palette == null)
+	{
+	    var fallbackColors = new Color[256];
+	    for (int c = 0; c < 256; c++) fallbackColors[c] = Color.White;
+	    palette = new PALT() { Colors = fallbackColors };
+	}
+
+	palette.References++;
+
+	// Ensure index 0 (and TransparentColorIndex) has alpha forced to 0 directly in array
+	if (palette.Colors != null && palette.Colors.Length > TransparentColorIndex)
+	{
+	    palette.Colors[TransparentColorIndex].A = 0;
+	    palette.Colors[0].A = 0; // Force palette index 0 transparent
+	}
 
             while (!endmarker && io.HasMore)
             {

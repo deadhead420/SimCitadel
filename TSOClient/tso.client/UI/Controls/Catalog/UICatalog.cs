@@ -439,10 +439,10 @@ namespace FSO.Client.UI.Controls.Catalog
 
     Texture2D icon = null;
 
-    // Check standard catalog icon IDs
     ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
-    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID };
+    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID, 2000 };
 
+    // 1. First attempt: Standard BMP catalog images
     foreach (var id in candidateIDs)
     {
         if (id == 0) continue;
@@ -454,12 +454,22 @@ namespace FSO.Client.UI.Controls.Catalog
         }
     }
 
-    // Diagnostic logging for missing thumbnails
-    if (icon == null && obj.Resource != null)
+    // 2. Second attempt: SPR2 fallback for objects without BMPs (e.g. CatalogStringsID == 2000)
+    if (icon == null)
     {
-        var bmps = obj.Resource.List<BMP>();
-        var bmpList = bmps != null ? string.Join(", ", bmps.Select(b => b.ToString())) : "none";
-        System.Console.WriteLine($"[Catalog Icon Debug] GUID: 0x{GUID:X8} | CatalogStringsID: {stringsID} | Available BMPs: [{bmpList}]");
+        foreach (var id in candidateIDs)
+        {
+            if (id == 0) continue;
+
+            var spr2 = obj.Resource.Get<SPR2>(id);
+            if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+            {
+                // Grab the first frame of the sprite
+                var frame = spr2.Frames[0];
+                icon = frame.GetTexture(GameFacade.GraphicsDevice);
+                if (icon != null) break;
+            }
+        }
     }
 
     if (icon != null)

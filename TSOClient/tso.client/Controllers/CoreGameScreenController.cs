@@ -1,4 +1,4 @@
-﻿using FSO.Client.Controllers.Panels;
+using FSO.Client.Controllers.Panels;
 using FSO.Client.Model;
 using FSO.Client.Regulators;
 using FSO.Client.UI.Framework;
@@ -19,7 +19,6 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace FSO.Client.Controllers
 {
@@ -103,7 +102,6 @@ namespace FSO.Client.Controllers
                         Screen.InitializeLot();
                         Screen.vm.MyUID = Network.MyCharacter;
                         //initialize a lot
-			RefreshHouseWaypoints();
                         break;
                     case "LotCommandStream":
                         //forward the command to the VM
@@ -306,49 +304,16 @@ namespace FSO.Client.Controllers
             }
         }
 
-	public void RefreshHouseWaypoints()
-	{
-	    if (DataService == null || Network.MyCharacter == 0) return;
-
-	    DataService.Get<Avatar>(Network.MyCharacter).ContinueWith(task =>
-	    {
-	        if (task.IsFaulted || task.Result == null) return;
-
-	        var avatar = task.Result;
-	        uint lotGridKey = avatar.Avatar_LotGridXY;
-
-	        if (lotGridKey == 0 || lotGridKey == uint.MaxValue) return;
-
-	        // Fetch the Lot entity corresponding to Avatar_LotGridXY
-	        DataService.Get<Lot>(lotGridKey).ContinueWith(lotTask =>
-	        {
-	            if (lotTask.IsFaulted || lotTask.Result == null) return;
-
-	            var lot = lotTask.Result;
-	            var lotIds = new List<uint> { lot.Id };
-
-	            GameThread.NextUpdate(x =>
-	            {
-	                Screen?.SetHouseWaypoints(lotIds);
-	            });
-	        });
-	    });
-	}
-
-	public void MoveMeOut(uint target_lot, Callback<bool> onResult)
-	{
-	    RoommateProtocol.OnMoveoutResult = onResult;
-
-	    Network.CityClient.Write(new ChangeRoommateRequest()
-	    {
-	        Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
-	        AvatarId = Network.MyCharacter,
-	        LotLocation = target_lot
-	    });
-
-	    // Refresh map waypoints to reflect lot changes
-	    RefreshHouseWaypoints();
-	}
+        public void MoveMeOut(uint target_lot, Callback<bool> onResult)
+        {
+            RoommateProtocol.OnMoveoutResult = onResult;
+            Network.CityClient.Write(new ChangeRoommateRequest()
+            {
+                Type = Server.Protocol.Electron.Model.ChangeRoommateType.KICK,
+                AvatarId = Network.MyCharacter,
+                LotLocation = target_lot
+            });
+        }
 
         public void GetAvatarModel(uint key, Callback<Avatar> callback)
         {

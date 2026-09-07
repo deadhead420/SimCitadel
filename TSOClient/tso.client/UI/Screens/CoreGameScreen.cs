@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
@@ -44,8 +44,7 @@ namespace FSO.Client.UI.Screens
         public UINeighPage NeighPage;
         public UIBookmarks Bookmarks;
         public UIRelationshipDialog Relationships;
-	public UIMapWaypoint YouAreHere;
-	public List<UIMapWaypoint> HouseWaypoints = new List<UIMapWaypoint>();
+        public UIMapWaypoint YouAreHere, YourHouseHere;
 
         private Queue<SimConnectStateChange> StateChanges;
 
@@ -348,31 +347,6 @@ namespace FSO.Client.UI.Screens
                 FSOFacade.Hints.TriggerHint("screen:city");
             });
         }
-	
-	public void SetHouseWaypoints(IEnumerable<uint> lotIds)
-	{
-	    // Remove existing house waypoints
-	    foreach (var wp in HouseWaypoints)
-	    {
-	        Remove(wp);
-	    }
-	    HouseWaypoints.Clear();
-
-	    if (lotIds == null) return;
-
-	    foreach (var lotId in lotIds)
-	    {
-	        if (lotId == 0 || lotId == uint.MaxValue) continue;
-
-	        var houseWp = new UIMapWaypoint(UIMapWaypoint.UIMapWaypointStyle.YourHouseHere)
-	        {
-	            LotId = lotId
-	        };
-
-	        HouseWaypoints.Add(houseWp);
-	        AddAt(2, houseWp);
-	    }
-	}
 
         private void InitializeMap(int cityMap)
         {
@@ -392,8 +366,10 @@ namespace FSO.Client.UI.Screens
             AddAt(0, CityTooltipHitArea);
 
             YouAreHere = new UIMapWaypoint(UIMapWaypoint.UIMapWaypointStyle.YouAreHere);
+            YourHouseHere = new UIMapWaypoint(UIMapWaypoint.UIMapWaypointStyle.YourHouseHere);
             
             AddAt(2, YouAreHere);
+            AddAt(2, YourHouseHere);
         }
 
         private void InitializeMouse(){

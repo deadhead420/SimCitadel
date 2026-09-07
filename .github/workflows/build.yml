@@ -10,7 +10,7 @@ on:
       target:
         description: 'Target component to build'
         required: true
-        default: 'client'
+        default: 'both'
         type: choice
         options:
         - both
@@ -19,7 +19,7 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-  BUILD_TARGET: ${{ github.event.inputs.target || 'both' }}
+  BUILD_TARGET: ${{ inputs.target || 'both' }}
 
 jobs:
   build:

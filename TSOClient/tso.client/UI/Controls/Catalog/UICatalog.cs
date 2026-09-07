@@ -451,7 +451,7 @@ namespace FSO.Client.UI.Controls.Catalog
 	                var spr = obj.Resource.Get<SPR>(resID);
 	                if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
 	                {
-	                    int frameIdx = (spr.Frames.Count >= 4) ? 2 : 0;
+	                    int frameIdx = (spr.Frames.Count >= 4) ? 3 : 0;
 	                    icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
 	                }
 	                else
@@ -459,7 +459,7 @@ namespace FSO.Client.UI.Controls.Catalog
 	                    var spr2 = obj.Resource.Get<SPR2>(resID);
 	                    if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
 	                    {
-	                        int frameIdx = (spr2.Frames.Length >= 4) ? 2 : 0;
+	                        int frameIdx = (spr2.Frames.Length >= 4) ? 3 : 0;
 	                        icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
 	                    }
 	                }
@@ -472,7 +472,7 @@ namespace FSO.Client.UI.Controls.Catalog
 	            var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault();
 	            if (firstSpr != null && firstSpr.Frames != null && firstSpr.Frames.Count > 0)
 	            {
-	                int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
+	                int frameIdx = (firstSpr.Frames.Count >= 4) ? 3 : 0;
 	                icon = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
 	            }
 	            else
@@ -480,7 +480,7 @@ namespace FSO.Client.UI.Controls.Catalog
 	                var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault();
 	                if (firstSpr2 != null && firstSpr2.Frames != null && firstSpr2.Frames.Length > 0)
 	                {
-	                    int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
+	                    int frameIdx = (firstSpr2.Frames.Length >= 4) ? 3 : 0;
 	                    icon = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
 	                }
 	                else

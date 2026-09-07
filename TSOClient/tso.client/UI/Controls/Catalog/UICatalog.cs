@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
@@ -394,6 +394,7 @@ namespace FSO.Client.UI.Controls.Catalog
             {
                 var sel = Filtered[index++];
                 var elem = new UICatalogItem(false);
+                if (sel.Item.GUID == uint.MaxValue) elem.Visible = false;
                 elem.Index = index-1;
                 elem.Info = sel;
                 elem.Info.CalcPrice = (int)elem.Info.Item.Price;
@@ -424,7 +425,6 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-
 	public Texture2D GetObjIcon(uint GUID)
 {
     if (GUID == 0) return null;
@@ -434,43 +434,32 @@ namespace FSO.Client.UI.Controls.Catalog
         return cachedIcon;
     }
 
-    // Direct lookup on WorldObjects
     var obj = Content.Content.Get().WorldObjects.Get(GUID);
-
-    if (obj == null)
-    {
-        // DO NOT cache null here so missing/placeholder items don't lock blank
-        return null;
-    }
+    if (obj == null) return null;
 
     Texture2D icon = null;
 
-    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, obj.OBJ?.CatalogStringsID ?? 0 };
+    // Check standard catalog icon IDs
+    ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
+    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID };
 
     foreach (var id in candidateIDs)
     {
         if (id == 0) continue;
-
         var bmp = obj.Resource.Get<BMP>(id);
         if (bmp != null)
         {
             icon = bmp.GetTexture(GameFacade.GraphicsDevice);
             break;
         }
+    }
 
-        var spr = obj.Resource.Get<SPR>(id);
-        if (spr != null && spr.Frames != null && spr.Frames.Count == 1)
-        {
-            icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-            break;
-        }
-
-        var spr2 = obj.Resource.Get<SPR2>(id);
-        if (spr2 != null && spr2.Frames != null && spr2.Frames.Length == 1)
-        {
-            icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-            break;
-        }
+    // Diagnostic logging for missing thumbnails
+    if (icon == null && obj.Resource != null)
+    {
+        var bmps = obj.Resource.List<BMP>();
+        var bmpList = bmps != null ? string.Join(", ", bmps.Select(b => b.ToString())) : "none";
+        System.Console.WriteLine($"[Catalog Icon Debug] GUID: 0x{GUID:X8} | CatalogStringsID: {stringsID} | Available BMPs: [{bmpList}]");
     }
 
     if (icon != null)

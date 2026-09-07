@@ -61,8 +61,13 @@ jobs:
     - name: Restore NuGet Packages
       shell: pwsh
       run: |
-        # Solution-level restore executes in parallel across projects
+        # 1. Restore modern SDK-style projects via dotnet (generates project.assets.json)
+        dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
+
+        # 2. Restore legacy packages across the solution using solution-level NuGet restore
         nuget restore ./TSOClient/FreeSO.sln -NonInteractive -Verbosity quiet
+
+        # 3. Restore any standalone submodule config files
         if (Test-Path "./Other/libs/Lidgren.Network/packages.config") {
           nuget restore ./Other/libs/Lidgren.Network/packages.config -SolutionDirectory ./Other/libs/Lidgren.Network -NonInteractive -Verbosity quiet
         }

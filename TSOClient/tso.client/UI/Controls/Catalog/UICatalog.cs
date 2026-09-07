@@ -436,73 +436,8 @@ namespace FSO.Client.UI.Controls.Catalog
             return null;
         }
 
-        Texture2D icon = null;
-        ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
-
-        // 1. Explicit 2D BMP catalog icons
-        foreach (var id in candidateIDs)
-        {
-            if (id == 0) continue;
-            var bmp = obj.Resource.Get<BMP>(id);
-            if (bmp != null)
-            {
-                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-                break;
-            }
-        }
-
-        // 2. SPR / SPR2 assets
-        if (icon == null)
-        {
-            foreach (var id in candidateIDs)
-            {
-                if (id == 0) continue;
-
-                var spr = obj.Resource.Get<SPR>(id);
-                if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
-                {
-                    int frameIdx = (spr.Frames.Count >= 4) ? 2 : 0;
-                    icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    break;
-                }
-
-                var spr2 = obj.Resource.Get<SPR2>(id);
-                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
-                {
-                    int frameIdx = (spr2.Frames.Length >= 4) ? 2 : 0;
-                    icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    break;
-                }
-            }
-        }
-
-        // 3. General Fallback
-        if (icon == null)
-        {
-            var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
-            if (firstBmp != null)
-            {
-                icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
-            }
-            else
-            {
-                var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count > 0);
-                if (firstSpr != null)
-                {
-                    int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
-                    icon = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                }
-                else
-                {
-                    var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Length > 0);
-                    if (firstSpr2 != null)
-                    {
-                        int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
-                        icon = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    }
-                }
-            }
-        }
+        // Delegate icon extraction directly to the game object's native resource handler
+        Texture2D icon = obj.GetIcon(GameFacade.GraphicsDevice, 0);
 
         IconCache[GUID] = icon;
     }

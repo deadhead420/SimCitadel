@@ -349,6 +349,16 @@ namespace FSO.Files.Formats.IFF.Chunks
 
 	palette.References++;
 
+	// Restore transparentPixel definition expected by lines 420 & 482
+	var transparentPixel = palette.Colors[TransparentColorIndex];
+
+	// Ensure index 0 and TransparentColorIndex have alpha forced to 0 directly in array
+	if (palette.Colors != null && palette.Colors.Length > TransparentColorIndex)
+	{
+	    palette.Colors[TransparentColorIndex].A = 0;
+	    palette.Colors[0].A = 0;
+	}
+
 	// Ensure index 0 (and TransparentColorIndex) has alpha forced to 0 directly in array
 	if (palette.Colors != null && palette.Colors.Length > TransparentColorIndex)
 	{

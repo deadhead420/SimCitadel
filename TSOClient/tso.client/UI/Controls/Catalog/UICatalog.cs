@@ -425,125 +425,21 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-	public Texture2D GetObjIcon(uint GUID)
-{
-    if (GUID == 0) return null;
-
-    if (IconCache.TryGetValue(GUID, out Texture2D cachedIcon) && cachedIcon != null)
-    {
-        return cachedIcon;
-    }
-
-    var obj = Content.Content.Get().WorldObjects.Get(GUID);
-    if (obj == null) return null;
-
-    Texture2D icon = null;
-
-    ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
-    ushort[] candidateIDs = new ushort[] { 100, 1000, 1, stringsID, 2000 };
-
-    // 1. Try standard BMP catalog thumbnails first
-    foreach (var id in candidateIDs)
-    {
-        if (id == 0) continue;
-        try
+        public Texture2D GetObjIcon(uint GUID)
         {
-            var bmp = obj.Resource.Get<BMP>(id);
-            if (bmp != null)
-            {
-                var texture = bmp.GetTexture(GameFacade.GraphicsDevice);
-                if (texture != null)
+            if (!IconCache.ContainsKey(GUID)) {
+                var obj = Content.Content.Get().WorldObjects.Get(GUID);
+                if (obj == null)
                 {
-                    icon = ApplyChromaKey(texture);
-                    break;
+                    IconCache[GUID] = null;
+                    return null;
                 }
+                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+                else IconCache[GUID] = null;
             }
+            return IconCache[GUID];
         }
-        catch { }
-    }
-
-    // 2. Fallback to SPR2 thumbnail frames if no valid BMP exists
-    if (icon == null)
-    {
-        foreach (var id in candidateIDs)
-        {
-            if (id == 0) continue;
-
-            try
-            {
-                var spr2 = obj.Resource.Get<SPR2>(id);
-                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
-                {
-                    // Frame 0 is often collision/mask data; try frame 1 or 0
-                    int frameIdx = spr2.Frames.Length > 1 ? 1 : 0;
-                    var rawTexture = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-                    if (rawTexture != null)
-                    {
-                        icon = ApplyChromaKey(rawTexture);
-                        break;
-                    }
-                }
-            }
-            catch { }
-        }
-    }
-
-    if (icon != null)
-    {
-        IconCache[GUID] = icon;
-    }
-
-    return icon;
-}
-
-private Texture2D ApplyChromaKey(Texture2D source)
-{
-    if (source == null || source.IsDisposed) return null;
-
-    try
-    {
-        int width = source.Width;
-        int height = source.Height;
-
-        Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[width * height];
-        source.GetData(pixels);
-
-        bool modified = false;
-
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            var p = pixels[i];
-
-            // Match bright yellows (R > 160, G > 160, B < 100)
-            // and bright magentas/pinks (R > 160, G < 100, B > 160)
-            bool isYellowKey = (p.R > 160 && p.G > 160 && p.B < 100);
-            bool isMagentaKey = (p.R > 160 && p.G < 100 && p.B > 160);
-
-            if (isYellowKey || isMagentaKey)
-            {
-                pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
-                modified = true;
-            }
-        }
-
-        if (!modified) return source;
-
-        Texture2D cleanTexture = new Texture2D(
-            GameFacade.GraphicsDevice,
-            width,
-            height,
-            false,
-            SurfaceFormat.Color
-        );
-
-        cleanTexture.SetData(pixels);
-        return cleanTexture;
-    }
-    catch
-    {
-        return source;
-    }
-}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

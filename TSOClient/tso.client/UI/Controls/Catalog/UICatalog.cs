@@ -498,31 +498,40 @@ private Texture2D ApplyChromaKey(Texture2D source)
     {
         int width = source.Width;
         int height = source.Height;
+
+        // Allocate fresh Color array to pull decompressed ARGB pixel data
         Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[width * height];
         source.GetData(pixels);
 
-        bool modified = false;
         for (int i = 0; i < pixels.Length; i++)
         {
-            // Target pure yellow (#FFFF00) or pure magenta (#FF00FF) chroma keys
-            if ((pixels[i].R > 240 && pixels[i].G > 240 && pixels[i].B < 25) ||
-                (pixels[i].R > 240 && pixels[i].G < 25 && pixels[i].B > 240))
+            var p = pixels[i];
+
+            // Match all variants of yellow background keying (#FFFF00, #FFFF02, etc.)
+            // as well as pure magenta keying (#FF00FF)
+            bool isYellowKey = (p.R > 180 && p.G > 180 && p.B < 80);
+            bool isMagentaKey = (p.R > 180 && p.G < 80 && p.B > 180);
+
+            if (isYellowKey || isMagentaKey)
             {
                 pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
-                modified = true;
             }
         }
 
-        // Return original texture if no chroma-key pixels needed stripping
-        if (!modified) return source;
+        // Always create a new, uncompressed SurfaceFormat.Color texture for UI drawing
+        Texture2D cleanTexture = new Texture2D(
+            GameFacade.GraphicsDevice,
+            width,
+            height,
+            false,
+            SurfaceFormat.Color
+        );
 
-        Texture2D cleanTexture = new Texture2D(GameFacade.GraphicsDevice, width, height);
         cleanTexture.SetData(pixels);
         return cleanTexture;
     }
     catch
     {
-        // Fallback safely to original texture on graphics context errors
         return source;
     }
 }

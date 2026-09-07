@@ -408,7 +408,19 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-                elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
+		// Fetch special icon if available; otherwise fall back to GetObjIcon
+		Texture2D itemIcon = null;
+		if (elem.Info.Special?.Res != null)
+		{
+		    itemIcon = elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID);
+		}
+
+		if (itemIcon == null && elem.Info.Item != null)
+		{
+		    itemIcon = GetObjIcon(elem.Info.Item.GUID);
+		}
+
+		elem.Icon = itemIcon;
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;
                 elem.Y = (i / halfPage) * 45 + 2;
@@ -425,21 +437,114 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-        public Texture2D GetObjIcon(uint GUID)
+	public Texture2D GetObjIcon(uint GUID)
+{
+    if (GUID == 0) return null;
+
+    if (!IconCache.ContainsKey(GUID))
+    {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
         {
-            if (!IconCache.ContainsKey(GUID)) {
-                var obj = Content.Content.Get().WorldObjects.Get(GUID);
-                if (obj == null)
-                {
-                    IconCache[GUID] = null;
-                    return null;
-                }
-                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
-                else IconCache[GUID] = null;
-            }
-            return IconCache[GUID];
+            IconCache[GUID] = null;
+            return null;
         }
+
+        Texture2D icon = null;
+
+        // 1. Try standard BMP thumbnail first
+        try
+        {
+            ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
+            var bmp = obj.Resource.Get<BMP>(stringsID);
+            if (bmp != null)
+            {
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+            }
+        }
+        catch { }
+
+        // 2. Fall back to SPR2 sprite if no BMP exists
+        if (icon == null)
+        {
+            try
+            {
+                var spr2s = obj.Resource.List<SPR2>();
+                if (spr2s != null && spr2s.Count > 0)
+                {
+                    var targetSpr = spr2s.FirstOrDefault(s => s.ChunkID == 100 || s.ChunkID == 1000) ?? spr2s[0];
+                    if (targetSpr != null && targetSpr.Frames != null && targetSpr.Frames.Length > 0)
+                    {
+                        var rawTexture = targetSpr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                        if (rawTexture != null)
+                        {
+                            icon = CreateCatalogStripFromSPR2(rawTexture);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        IconCache[GUID] = icon;
+    }
+
+    return IconCache[GUID];
+}
+
+private Texture2D CreateCatalogStripFromSPR2(Texture2D source)
+{
+    if (source == null || source.IsDisposed) return null;
+
+    try
+    {
+        int w = source.Width;
+        int h = source.Height;
+
+        Microsoft.Xna.Framework.Color[] srcPixels = new Microsoft.Xna.Framework.Color[w * h];
+        source.GetData(srcPixels);
+
+        // Double width to construct a 2-state button strip (Inactive | Hover)
+        Microsoft.Xna.Framework.Color[] stripPixels = new Microsoft.Xna.Framework.Color[(w * 2) * h];
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                var p = srcPixels[y * w + x];
+
+                // Key out yellow (#FFFF00) and magenta (#FF00FF) background fills
+                bool isYellowKey = (p.R > 160 && p.G > 160 && p.B < 100);
+                bool isMagentaKey = (p.R > 160 && p.G < 100 && p.B > 160);
+
+                if (isYellowKey || isMagentaKey)
+                {
+                    p = Microsoft.Xna.Framework.Color.Transparent;
+                }
+
+                // Copy to left state (inactive)
+                stripPixels[y * (w * 2) + x] = p;
+                // Copy to right state (hover/active)
+                stripPixels[y * (w * 2) + (x + w)] = p;
+            }
+        }
+
+        Texture2D strip = new Texture2D(
+            GameFacade.GraphicsDevice,
+            w * 2,
+            h,
+            false,
+            SurfaceFormat.Color
+        );
+
+        strip.SetData(stripPixels);
+        return strip;
+    }
+    catch
+    {
+        return source;
+    }
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

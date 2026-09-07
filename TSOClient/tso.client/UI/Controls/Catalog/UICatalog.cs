@@ -437,6 +437,7 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
+
 	public Texture2D GetObjIcon(uint GUID)
 {
     if (GUID == 0) return null;
@@ -452,7 +453,7 @@ namespace FSO.Client.UI.Controls.Catalog
 
         Texture2D icon = null;
 
-        // 1. Try standard BMP thumbnail first
+        // 1. Check for standard embedded BMP thumbnail
         try
         {
             ushort stringsID = obj.OBJ?.CatalogStringsID ?? 0;
@@ -464,7 +465,7 @@ namespace FSO.Client.UI.Controls.Catalog
         }
         catch { }
 
-        // 2. Fall back to SPR2 sprite if no BMP exists
+        // 2. Fall back to SPR2 world sprite frame if no BMP thumbnail exists
         if (icon == null)
         {
             try
@@ -504,7 +505,7 @@ private Texture2D CreateCatalogStripFromSPR2(Texture2D source)
         Microsoft.Xna.Framework.Color[] srcPixels = new Microsoft.Xna.Framework.Color[w * h];
         source.GetData(srcPixels);
 
-        // Double width to construct a 2-state button strip (Inactive | Hover)
+        // 2-state strip (Inactive | Hover) to keep UICatalogItem line 87 from splitting single frames
         Microsoft.Xna.Framework.Color[] stripPixels = new Microsoft.Xna.Framework.Color[(w * 2) * h];
 
         for (int y = 0; y < h; y++)
@@ -513,18 +514,19 @@ private Texture2D CreateCatalogStripFromSPR2(Texture2D source)
             {
                 var p = srcPixels[y * w + x];
 
-                // Key out yellow (#FFFF00) and magenta (#FF00FF) background fills
-                bool isYellowKey = (p.R > 160 && p.G > 160 && p.B < 100);
-                bool isMagentaKey = (p.R > 160 && p.G < 100 && p.B > 160);
+                // Palette Index 0 Key: Clear yellow background while leaving porcelain white untouched
+                // Green > Blue * 1.3 catches the pale yellow/green key shades without touching neutral whites/grays
+                bool isYellowBackground = (p.R > 120 && p.G > 120 && p.G > (p.B * 1.35f));
+                bool isMagentaBackground = (p.R > 150 && p.B > 150 && p.G < 100);
 
-                if (isYellowKey || isMagentaKey)
+                if (isYellowBackground || isMagentaBackground)
                 {
                     p = Microsoft.Xna.Framework.Color.Transparent;
                 }
 
-                // Copy to left state (inactive)
+                // Left frame (Inactive)
                 stripPixels[y * (w * 2) + x] = p;
-                // Copy to right state (hover/active)
+                // Right frame (Hover/Active)
                 stripPixels[y * (w * 2) + (x + w)] = p;
             }
         }

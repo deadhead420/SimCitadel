@@ -425,97 +425,91 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
+
 	public Texture2D GetObjIcon(uint GUID)
-	{
-	    if (!IconCache.ContainsKey(GUID)) {
-	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null)
-	        {
-	            IconCache[GUID] = null;
-	            return null;
-	        }
+{
+    if (!IconCache.ContainsKey(GUID)) {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
+        {
+            IconCache[GUID] = null;
+            return null;
+        }
 
-	        Texture2D icon = null;
+        Texture2D icon = null;
 
-	        // Dedicated catalog resource IDs in TS1/TSO packages
-	        ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
+        // Dedicated catalog resource IDs in TS1/TSO packages
+        ushort[] candidateIDs = new ushort[] { obj.OBJ.CatalogStringsID, 100, 1000 };
 
-	        // 1. Check candidate IDs for explicit 2D BMP catalog icons
-	        foreach (var id in candidateIDs)
-	        {
-	            if (id == 0) continue;
-	            var bmp = obj.Resource.Get<BMP>(id);
-	            if (bmp != null)
-	            {
-	                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-	                break;
-	            }
-	        }
+        // 1. Search candidate IDs for explicit 2D BMP catalog icons
+        foreach (var id in candidateIDs)
+        {
+            if (id == 0) continue;
+            var bmp = obj.Resource.Get<BMP>(id);
+            if (bmp != null)
+            {
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                break;
+            }
+        }
 
-	        // 2. Check candidate IDs for single-frame SPR / SPR2 catalog icons (ignores multi-frame world sets)
-	        if (icon == null)
-	        {
-	            foreach (var id in candidateIDs)
-	            {
-	                if (id == 0) continue;
-	
-	                var spr = obj.Resource.Get<SPR>(id);
-	                if (spr != null && spr.Frames != null && spr.Frames.Count == 1)
-	                {
-	                    icon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-	                    break;
-	                }
+        // 2. Search candidate IDs for SPR / SPR2 assets (Frame 2 for 4-dir, else Frame 0)
+        if (icon == null)
+        {
+            foreach (var id in candidateIDs)
+            {
+                if (id == 0) continue;
 
-	                var spr2 = obj.Resource.Get<SPR2>(id);
-	                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length == 1)
-	                {
-	                    icon = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-	                    break;
-	                }
-	            }
-	        }
+                var spr = obj.Resource.Get<SPR>(id);
+                if (spr != null && spr.Frames != null && spr.Frames.Count > 0)
+                {
+                    int frameIdx = (spr.Frames.Count >= 4) ? 2 : 0;
+                    icon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    break;
+                }
 
-	        // 3. Fallback: Search package for any single-frame SPR2/SPR or standalone BMP
-	        if (icon == null)
-	        {
-	            var singleSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Length == 1);
-	            if (singleSpr2 != null)
-	            {
-	                icon = singleSpr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-	            }
-	            else
-	            {
-	                var singleSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count == 1);
-	                if (singleSpr != null)
-	                {
-	                    icon = singleSpr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-	                }
-	                else
-	                {
-	                    var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
-	                    if (firstBmp != null)
-	                    {
-	                        icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
-	                    }
-	                }
-	            }
-	        }
+                var spr2 = obj.Resource.Get<SPR2>(id);
+                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+                {
+                    int frameIdx = (spr2.Frames.Length >= 4) ? 2 : 0;
+                    icon = spr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    break;
+                }
+            }
+        }
 
-	        // 4. Last Resort: If only multi-frame world sprites exist, select Frame 2 (Front-Facing)
-	        if (icon == null)
-	        {
-	            var worldSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count > 0);
-	            if (worldSpr != null)
-	            {
-	                int frameIdx = (worldSpr.Frames.Count >= 4) ? 2 : 0;
-	                icon = worldSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
-	            }
-	        }
+        // 3. General Fallback: Scan package SPR/SPR2/BMP lists
+        if (icon == null)
+        {
+            var firstSpr = obj.Resource.List<SPR>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Count > 0);
+            if (firstSpr != null)
+            {
+                int frameIdx = (firstSpr.Frames.Count >= 4) ? 2 : 0;
+                icon = firstSpr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+            }
+            else
+            {
+                var firstSpr2 = obj.Resource.List<SPR2>()?.FirstOrDefault(s => s.Frames != null && s.Frames.Length > 0);
+                if (firstSpr2 != null)
+                {
+                    int frameIdx = (firstSpr2.Frames.Length >= 4) ? 2 : 0;
+                    icon = firstSpr2.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                }
+                else
+                {
+                    var firstBmp = obj.Resource.List<BMP>()?.FirstOrDefault();
+                    if (firstBmp != null)
+                    {
+                        icon = firstBmp.GetTexture(GameFacade.GraphicsDevice);
+                    }
+                }
+            }
+        }
 
-	        IconCache[GUID] = icon;
-	    }
-	    return IconCache[GUID];
-	}
+        IconCache[GUID] = icon;
+    }
+    return IconCache[GUID];
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

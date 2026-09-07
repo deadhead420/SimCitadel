@@ -7,6 +7,9 @@ on:
     branches: [ master, main ]
   workflow_dispatch:
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   build:
     runs-on: windows-2022
@@ -30,7 +33,7 @@ jobs:
         path: |
           ~/.nuget/packages
           ${{ github.workspace }}/TSOClient/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.sln', '**/*.config', '**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.config', '**/*.csproj') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
 
@@ -54,36 +57,38 @@ jobs:
     - name: Generate MonoGame Projects via Protobuild
       shell: pwsh
       run: |
-        Set-Location ./Other/libs/FSOMonoGame/
+        cd ./Other/libs/FSOMonoGame/
         ./protobuild.exe --generate
-        Set-Location ../../../
+        cd ../../../
 
-    - name: Restore NuGet Packages
+    - name: Restore Roslyn SDK Project
+      run: dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
+
+    - name: Restore Legacy NuGet Packages (Parallelized)
       shell: pwsh
       run: |
-        # 1. Restore modern SDK-style projects via dotnet (generates project.assets.json)
-        dotnet restore ./TSOClient/FSO.SimAntics.JIT.Roslyn/FSO.SimAntics.JIT.Roslyn.csproj
+        # Only search source directories to avoid scanning bin, obj, git, and irrelevant paths
+        $projects = Get-ChildItem -Path ./TSOClient, ./Other/libs -Recurse -Filter *.csproj | 
+          Where-Object { $_.FullName -notmatch '\\(bin|obj|\.git)\\' }
 
-        # 2. Restore legacy packages across the solution using solution-level NuGet restore
-        nuget restore ./TSOClient/FreeSO.sln -NonInteractive -Verbosity quiet
-
-        # 3. Restore any standalone submodule config files
-        if (Test-Path "./Other/libs/Lidgren.Network/packages.config") {
-          nuget restore ./Other/libs/Lidgren.Network/packages.config -SolutionDirectory ./Other/libs/Lidgren.Network -NonInteractive -Verbosity quiet
-        }
+        # Restore projects in parallel batches using PowerShell ThreadJobs
+        $projects | ForEach-Object -Parallel {
+          nuget restore $_.FullName -SolutionDirectory ./TSOClient -NonInteractive -Verbosity quiet
+        } -ThrottleLimit 8
+      continue-on-error: true
 
     - name: Build Submodules & Core Dependencies
       run: |
-        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
-        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
+        msbuild ./Other/libs/Lidgren.Network/Lidgren.Network.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
+        msbuild ./Other/libs/FSOMonoGame/MonoGame.Framework/MonoGame.Framework.WindowsGL.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m
 
     - name: Build Client Project
       run: |
-        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
+        msbuild ./TSOClient/FSO.IDE/FSO.IDE.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m
 
     - name: Build Server Project
       run: |
-        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /p:Configuration=Release /p:Platform="AnyCPU" /m /v:m
+        msbuild ./TSOClient/FSO.Server.Core/FSO.Server.Core.csproj /restore /p:Configuration=Release /p:Platform="AnyCPU" /m
 
     - name: Stage Artifacts
       shell: pwsh

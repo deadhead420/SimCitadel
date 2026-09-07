@@ -315,17 +315,22 @@ namespace FSO.Client.Controllers
 	        if (task.IsFaulted || task.Result == null) return;
 
 	        var avatar = task.Result;
-	        var lotIds = new List<uint>();
+	        uint lotGridKey = avatar.Avatar_LotGridXY;
 
-	        if (avatar.Avatar_LotGridXY != 0 && avatar.Avatar_LotGridXY != uint.MaxValue)
-	        {
-	            lotIds.Add(avatar.Avatar_LotGridXY);
-	        }
+	        if (lotGridKey == 0 || lotGridKey == uint.MaxValue) return;
 
-	        // Dispatch back to the main UI thread via GameThread
-		GameThread.NextUpdate(x =>
+	        // Fetch the Lot entity corresponding to Avatar_LotGridXY
+	        DataService.Get<Lot>(lotGridKey).ContinueWith(lotTask =>
 	        {
-	            Screen?.SetHouseWaypoints(lotIds);
+	            if (lotTask.IsFaulted || lotTask.Result == null) return;
+
+	            var lot = lotTask.Result;
+	            var lotIds = new List<uint> { lot.Id };
+
+	            GameThread.NextUpdate(x =>
+	            {
+	                Screen?.SetHouseWaypoints(lotIds);
+	            });
 	        });
 	    });
 	}

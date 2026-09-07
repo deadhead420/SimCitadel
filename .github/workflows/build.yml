@@ -45,7 +45,7 @@ jobs:
       shell: pwsh
       run: |
         # Restoring at the solution level runs in parallel and avoids loop overhead
-        nuget restore ./TSOClient/TSOClient.sln -NonInteractive
+        nuget restore ./TSOClient/FreeSO.sln -NonInteractive
 
     - name: Build Submodules & Core Dependencies
       run: |

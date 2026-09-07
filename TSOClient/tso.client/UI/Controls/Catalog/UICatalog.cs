@@ -446,12 +446,16 @@ namespace FSO.Client.UI.Controls.Catalog
     foreach (var id in candidateIDs)
     {
         if (id == 0) continue;
-        var bmp = obj.Resource.Get<BMP>(id);
-        if (bmp != null)
+        try
         {
-            icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-            break;
+            var bmp = obj.Resource.Get<BMP>(id);
+            if (bmp != null)
+            {
+                icon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                if (icon != null) break;
+            }
         }
+        catch { }
     }
 
     // 2. Fallback to SPR2 with chroma-key removal for missing BMPs
@@ -461,16 +465,20 @@ namespace FSO.Client.UI.Controls.Catalog
         {
             if (id == 0) continue;
 
-            var spr2 = obj.Resource.Get<SPR2>(id);
-            if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
+            try
             {
-                var rawTexture = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
-                if (rawTexture != null)
+                var spr2 = obj.Resource.Get<SPR2>(id);
+                if (spr2 != null && spr2.Frames != null && spr2.Frames.Length > 0)
                 {
-                    icon = ApplyChromaKey(rawTexture);
-                    break;
+                    var rawTexture = spr2.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                    if (rawTexture != null)
+                    {
+                        icon = ApplyChromaKey(rawTexture);
+                        if (icon != null) break;
+                    }
                 }
             }
+            catch { }
         }
     }
 
@@ -482,24 +490,41 @@ namespace FSO.Client.UI.Controls.Catalog
     return icon;
 }
 
-	private Texture2D ApplyChromaKey(Texture2D source)
+private Texture2D ApplyChromaKey(Texture2D source)
 {
-    Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[source.Width * source.Height];
-    source.GetData(pixels);
+    if (source == null || source.IsDisposed) return null;
 
-    for (int i = 0; i < pixels.Length; i++)
+    try
     {
-        // Target pure yellow (#FFFF00) or magenta (#FF00FF) keying backgrounds
-        if ((pixels[i].R > 240 && pixels[i].G > 240 && pixels[i].B < 20) || 
-            (pixels[i].R > 240 && pixels[i].G < 20 && pixels[i].B > 240))
-        {
-            pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
-        }
-    }
+        int width = source.Width;
+        int height = source.Height;
+        Microsoft.Xna.Framework.Color[] pixels = new Microsoft.Xna.Framework.Color[width * height];
+        source.GetData(pixels);
 
-    Texture2D cleanTexture = new Texture2D(GameFacade.GraphicsDevice, source.Width, source.Height);
-    cleanTexture.SetData(pixels);
-    return cleanTexture;
+        bool modified = false;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            // Target pure yellow (#FFFF00) or pure magenta (#FF00FF) chroma keys
+            if ((pixels[i].R > 240 && pixels[i].G > 240 && pixels[i].B < 25) ||
+                (pixels[i].R > 240 && pixels[i].G < 25 && pixels[i].B > 240))
+            {
+                pixels[i] = Microsoft.Xna.Framework.Color.Transparent;
+                modified = true;
+            }
+        }
+
+        // Return original texture if no chroma-key pixels needed stripping
+        if (!modified) return source;
+
+        Texture2D cleanTexture = new Texture2D(GameFacade.GraphicsDevice, width, height);
+        cleanTexture.SetData(pixels);
+        return cleanTexture;
+    }
+    catch
+    {
+        // Fallback safely to original texture on graphics context errors
+        return source;
+    }
 }
 
         private class CatalogSorter : IComparer<UICatalogElement>

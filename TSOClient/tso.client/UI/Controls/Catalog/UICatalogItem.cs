@@ -68,23 +68,28 @@ namespace FSO.Client.UI.Controls.Catalog
         public override void Draw(UISpriteBatch batch)
         {
             if (!Visible) return;
-            if (Icon != null)
+
+	    if (Icon != null)
             {
+                DrawLocalTexture(batch, Background, new Vector2(0, 0));
+
                 if (Icon.Width / Icon.Height > 2)
                 {
-                    //special button
+                    // Special multi-state button icon
                     DrawLocalTexture(batch, Icon, new Rectangle((!Disabled && (Active || Hovered)) ? Icon.Width / 4 : 0, 0, Icon.Width / 4, Icon.Height), new Vector2(2, 2));
                 }
                 else
                 {
-                    DrawLocalTexture(batch, Background, new Vector2(0, 0));
-                    if (Icon.Height > 48 || Icon.Width == Icon.Height) //poor mans way of saying "special icon" eg floors
-                    {
-                        float scale = 37.0f / Math.Max(Icon.Height, Icon.Width);
-                        DrawLocalTexture(batch, Icon, new Rectangle(0, 0, Icon.Width, Icon.Height), new Vector2(2 + ((37 - Icon.Width * scale) / 2), 2 + ((37 - Icon.Height * scale) / 2)), new Vector2(scale, scale));
-                    }
-                    else
-                        DrawLocalTexture(batch, Icon, new Rectangle((!Disabled && (Active || Hovered)) ? Icon.Width / 2 : 0, 0, Icon.Width / 2, Icon.Height), new Vector2(2, 2));
+                    // Always draw single-frame object icons centered with proper scaling
+                    float scale = 37.0f / Math.Max(Icon.Height, Icon.Width);
+                    if (scale > 1.0f) scale = 1.0f; // Don't upscale tiny icons past 1:1
+
+                    Vector2 offset = new Vector2(
+                        2 + ((37 - Icon.Width * scale) / 2),
+                        2 + ((37 - Icon.Height * scale) / 2)
+                    );
+
+                    DrawLocalTexture(batch, Icon, new Rectangle(0, 0, Icon.Width, Icon.Height), offset, new Vector2(scale, scale));
                 }
             } else
             {

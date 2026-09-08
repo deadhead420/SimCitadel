@@ -459,7 +459,8 @@ namespace FSO.Client.UI.Controls.Catalog
 
                 if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
                 {
-                    cachedIcon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+		    int frameIdx = (spr.Frames.Length >= 3) ? 2 : 0;
+	            cachedIcon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
                 }
             }
             catch

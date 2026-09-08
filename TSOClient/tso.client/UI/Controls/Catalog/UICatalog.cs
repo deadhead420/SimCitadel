@@ -427,57 +427,6 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-	public Texture2D GetObjIcon(uint GUID)
-	{
-	    if (GUID == 0) return null;
-
-	    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-	    {
-	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null)
-	        {
-	            IconCache[GUID] = null;
-	            return null;
-	        }
-
-	        // 1. Try static catalog BMP thumbnail
-	        var catID = obj.OBJ?.CatalogStringsID ?? 0;
-	        var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
-	        if (bmp != null)
-	        {
-	            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-	        }
-
-	        // 2. Fallback via DGRP composite rendering for BMP-less objects
-	        if (cachedIcon == null)
-	        {
-	            try
-	            {
-	                var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
-	                var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
-
-	                if (dgrp != null)
-	                {
-	                    // Request South/Front-facing direction (0x10) at Zoom 1
-	                    var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
-	                    if (img != null && img.Sprites != null && img.Sprites.Length > 0)
-	                    {
-	                        cachedIcon = CompositeDGRPImage(img);
-	                    }
-	                }
-	            }
-	            catch
-	            {
-	                cachedIcon = null;
-	            }
-	        }
-
-	        IconCache[GUID] = cachedIcon;
-	    }
-
-	    return IconCache[GUID];
-	}
-
 	private struct DGRPLayerData
 {
     public Texture2D Texture;
@@ -498,7 +447,6 @@ private SPR2Frame GetSPR2Frame(DGRPSprite sprite)
 {
     try
     {
-        // Access the private Parent property on DGRPSprite via reflection to reach the IffFile
         var parentProp = typeof(DGRPSprite).GetProperty("Parent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         if (parentProp == null) return null;
 
@@ -536,13 +484,11 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
         if (worldTex.Pixel == null || dims.X <= 0 || dims.Y <= 0) continue;
 
-        // Retrieve the SPR2 frame to get exact atlas coordinates via Position
         var spr2Frame = GetSPR2Frame(sprLayer);
         Rectangle srcRect;
 
         if (spr2Frame != null)
         {
-            // Crop exact frame sub-rectangle out of atlas using Position
             srcRect = new Rectangle((int)spr2Frame.Position.X, (int)spr2Frame.Position.Y, dims.X, dims.Y);
         }
         else
@@ -566,7 +512,6 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
     if (totalWidth <= 0 || totalHeight <= 0) return null;
 
-    // 1. Composite layers onto target using sub-rectangle crops and normalized offsets
     RenderTarget2D compositeTarget = new RenderTarget2D(device, totalWidth, totalHeight);
     device.SetRenderTarget(compositeTarget);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);
@@ -582,7 +527,7 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
             spriteBatch.Draw(
                 layer.Texture,
                 drawPos,
-                layer.SourceRect, // Crops atlas frame region
+                layer.SourceRect,
                 Microsoft.Xna.Framework.Color.White,
                 0f,
                 Vector2.Zero,
@@ -594,7 +539,6 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
         spriteBatch.End();
     }
 
-    // 2. Center and scale result into 64x64 catalog slot
     RenderTarget2D finalIcon = new RenderTarget2D(device, 64, 64);
     device.SetRenderTarget(finalIcon);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);
@@ -616,6 +560,57 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
     return finalIcon;
 }
+
+public Texture2D GetObjIcon(uint GUID)
+{
+    if (GUID == 0) return null;
+
+    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
+    {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
+        {
+            IconCache[GUID] = null;
+            return null;
+        }
+
+        var catID = obj.OBJ?.CatalogStringsID ?? 0;
+
+        // Force DGRP compositing first
+        try
+        {
+            var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
+            var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
+
+            if (dgrp != null)
+            {
+                var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
+                if (img != null && img.Sprites != null && img.Sprites.Length > 0)
+                {
+                    cachedIcon = CompositeDGRPImage(img);
+                }
+            }
+        }
+        catch
+        {
+            cachedIcon = null;
+        }
+
+        // Fallback to static BMP thumbnail if DGRP compositing yields nothing
+        if (cachedIcon == null && catID != 0)
+        {
+            var bmp = obj.Resource.Get<BMP>(catID);
+            if (bmp != null)
+            {
+                cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+            }
+        }
+
+        IconCache[GUID] = cachedIcon;
+    }
+
+    return cachedIcon;
+}	
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

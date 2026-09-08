@@ -479,65 +479,107 @@ namespace FSO.Client.UI.Controls.Catalog
 	}
 
 	private struct DGRPLayerData
-	{
-	    public Texture2D Texture;
-	    public Vector2 Offset;
+{
+    public Texture2D Texture;
+    public Rectangle SourceRect;
+    public Vector2 Offset;
+    public bool Flip;
 
-	    public DGRPLayerData(Texture2D texture, Vector2 offset)
-	    {
-	        Texture = texture;
-	        Offset = offset;
-	    }
-	}
+    public DGRPLayerData(Texture2D texture, Rectangle sourceRect, Vector2 offset, bool flip)
+    {
+        Texture = texture;
+        SourceRect = sourceRect;
+        Offset = offset;
+        Flip = flip;
+    }
+}
 
-	private Texture2D CompositeDGRPImage(DGRPImage img)
-	{
-	    var device = GameFacade.GraphicsDevice;
 
-	    int minX = int.MaxValue, minY = int.MaxValue;
-	    int maxX = int.MinValue, maxY = int.MinValue;
+private Texture2D CompositeDGRPImage(DGRPImage img)
+{
+    var device = GameFacade.GraphicsDevice;
 
-	    List<DGRPLayerData> validLayers = new List<DGRPLayerData>();
+    int minX = int.MaxValue, minY = int.MaxValue;
+    int maxX = int.MinValue, maxY = int.MinValue;
 
-	    foreach (var sprLayer in img.Sprites)
-	    {
-	        var tex = sprLayer.GetTexture(device);
-	        if (tex == null || tex.Width == 0 || tex.Height == 0) continue;
+    List<DGRPLayerData> validLayers = new List<DGRPLayerData>();
 
-	        Vector2 offset = sprLayer.SpriteOffset;
-	        validLayers.Add(new DGRPLayerData(tex, offset));
+    foreach (var sprLayer in img.Sprites)
+    {
+        var worldTex = sprLayer.GetWorldTexture(device);
+        var dims = sprLayer.GetDimensions();
 
-	        minX = Math.Min(minX, (int)offset.X);
-	        minY = Math.Min(minY, (int)offset.Y);
-	        maxX = Math.Max(maxX, (int)offset.X + tex.Width);
-	        maxY = Math.Max(maxY, (int)offset.Y + tex.Height);
-	    }
+        if (worldTex.Pixel == null || dims.X <= 0 || dims.Y <= 0) continue;
 
-	    if (validLayers.Count == 0) return null;
+        Texture2D tex = worldTex.Pixel;
+        Rectangle srcRect = new Rectangle(0, 0, dims.X, dims.Y);
 
-	    int totalWidth = maxX - minX;
-	    int totalHeight = maxY - minY;
+        Vector2 offset = sprLayer.SpriteOffset;
+        validLayers.Add(new DGRPLayerData(tex, srcRect, offset, sprLayer.Flip));
 
-	    if (totalWidth <= 0 || totalHeight <= 0) return null;
+        minX = Math.Min(minX, (int)offset.X);
+        minY = Math.Min(minY, (int)offset.Y);
+        maxX = Math.Max(maxX, (int)offset.X + dims.X);
+        maxY = Math.Max(maxY, (int)offset.Y + dims.Y);
+    }
 
-	    RenderTarget2D renderTarget = new RenderTarget2D(device, totalWidth, totalHeight);
-	    device.SetRenderTarget(renderTarget);
-	    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
+    if (validLayers.Count == 0) return null;
 
-	    using (SpriteBatch spriteBatch = new SpriteBatch(device))
-	    {
-	        spriteBatch.Begin();
-	        foreach (var layer in validLayers)
-	        {
-	            Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
-	            spriteBatch.Draw(layer.Texture, drawPos, Microsoft.Xna.Framework.Color.White);
-	        }
-	        spriteBatch.End();
-	    }
+    int totalWidth = maxX - minX;
+    int totalHeight = maxY - minY;
 
-	    device.SetRenderTarget(null);
-	    return renderTarget;
-	}
+    if (totalWidth <= 0 || totalHeight <= 0) return null;
+
+    // 1. Composite all layers onto an unscaled render target
+    RenderTarget2D compositeTarget = new RenderTarget2D(device, totalWidth, totalHeight);
+    device.SetRenderTarget(compositeTarget);
+    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
+
+    using (SpriteBatch spriteBatch = new SpriteBatch(device))
+    {
+        spriteBatch.Begin();
+        foreach (var layer in validLayers)
+        {
+            Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
+            SpriteEffects effects = layer.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+
+            spriteBatch.Draw(
+                layer.Texture,
+                drawPos,
+                layer.SourceRect,
+                Microsoft.Xna.Framework.Color.White,
+                0f,
+                Vector2.Zero,
+                1f,
+                effects,
+                0f
+            );
+        }
+        spriteBatch.End();
+    }
+
+    // 2. Center and scale proportionally into a 64x64 icon box
+    RenderTarget2D finalIcon = new RenderTarget2D(device, 64, 64);
+    device.SetRenderTarget(finalIcon);
+    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
+
+    float scale = Math.Min(56f / totalWidth, 56f / totalHeight);
+    int destW = (int)(totalWidth * scale);
+    int destH = (int)(totalHeight * scale);
+    Rectangle destRect = new Rectangle((64 - destW) / 2, (64 - destH) / 2, destW, destH);
+
+    using (SpriteBatch spriteBatch = new SpriteBatch(device))
+    {
+        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, null, null);
+        spriteBatch.Draw(compositeTarget, destRect, Microsoft.Xna.Framework.Color.White);
+        spriteBatch.End();
+    }
+
+    device.SetRenderTarget(null);
+    compositeTarget.Dispose();
+
+    return finalIcon;
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

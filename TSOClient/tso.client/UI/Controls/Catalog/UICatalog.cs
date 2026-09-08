@@ -461,7 +461,7 @@ namespace FSO.Client.UI.Controls.Catalog
                     // Select frame: Index 1 or 2 typically corresponds to front-south isometric view
                     int targetFrame = 0;
                     if (spr.Frames.Length >= 12) targetFrame = 9;      // Medium/Close zoom front view
-                    else if (spr.Frames.Length >= 4) targetFrame = 1;  // Far zoom front view
+                    else if (spr.Frames.Length >= 4) targetFrame = 2;  // Far zoom front view
                     else targetFrame = 0;
 
                     cachedIcon = spr.Frames[targetFrame].GetTexture(GameFacade.GraphicsDevice);

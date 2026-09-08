@@ -425,52 +425,21 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-	public Texture2D GetObjIcon(uint GUID)
-	{
-	    if (GUID == 0) return null;
-
-	    if (!IconCache.ContainsKey(GUID))
-	    {
-	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null)
-	        {
-	            IconCache[GUID] = null;
-	            return null;
-	        }
-
-	        Texture2D icon = null;
-
-	        try
-	        {
-	            ushort baseID = obj.OBJ?.CatalogStringsID ?? 0;
-
-	            // TS1 stores catalog BMPs at baseID, expansion offsets (+2000, +4000), or fixed IDs (100, 1000)
-	            ushort[] candidateIDs = new ushort[] {
-	                baseID,
-	                (ushort)(baseID + 2000),
-	                (ushort)(baseID + 4000),
-	                100,
-	                1000
-	            };
-
-	            foreach (var id in candidateIDs)
-	            {
-	                if (id == 0) continue;
-	                var bmp = obj.Resource.Get<BMP>(id);
-	                if (bmp != null)
-	                {
-	                    icon = bmp.GetTexture(GameFacade.GraphicsDevice);
-	                    if (icon != null) break;
-	                }
-	            }
-	        }
-	        catch { }
-
-	        IconCache[GUID] = icon;
-	    }
-
-	    return IconCache[GUID];
-	}
+        public Texture2D GetObjIcon(uint GUID)
+        {
+            if (!IconCache.ContainsKey(GUID)) {
+                var obj = Content.Content.Get().WorldObjects.Get(GUID);
+                if (obj == null)
+                {
+                    IconCache[GUID] = null;
+                    return null;
+                }
+                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+                else IconCache[GUID] = null;
+            }
+            return IconCache[GUID];
+        }
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

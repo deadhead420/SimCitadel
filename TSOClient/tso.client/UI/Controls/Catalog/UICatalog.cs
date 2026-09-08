@@ -4,6 +4,7 @@ using System.Linq;
 using FSO.Client.UI.Framework;
 using FSO.Client.UI.Model;
 using FSO.Content;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using FSO.Files.Formats.IFF.Chunks;
 using FSO.Client.UI.Panels.LotControls;
@@ -439,7 +440,7 @@ namespace FSO.Client.UI.Controls.Catalog
 	            return null;
 	        }
 
-	        // 1. Try pre-rendered BMP thumbnail
+	        // 1. Try static catalog BMP thumbnail
 	        var catID = obj.OBJ?.CatalogStringsID ?? 0;
 	        var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
 	        if (bmp != null)
@@ -447,41 +448,22 @@ namespace FSO.Client.UI.Controls.Catalog
 	            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
 	        }
 
-	        // 2. Fallback via DGRP lookup for zero-BMP objects
+	        // 2. Fallback via DGRP composite rendering for BMP-less objects
 	        if (cachedIcon == null)
 	        {
 	            try
 	            {
-	                // Fetch DGRP via CatalogStringsID, BaseGraphicID, or default 100
 	                var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
 	                var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
 
 	                if (dgrp != null)
 	                {
-	                    // Direction 0x10 (LeftFront/South), Zoom 1 (Far/Medium), WorldRotation 0
+	                    // Request South/Front-facing direction (0x10) at Zoom 1
 	                    var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
 	                    if (img != null && img.Sprites != null && img.Sprites.Length > 0)
 	                    {
-	                        var spriteLayer = img.Sprites[0];
-	                        cachedIcon = spriteLayer.GetTexture(GameFacade.GraphicsDevice);
+	                        cachedIcon = CompositeDGRPImage(img);
 	                    }
-	                }
-	            }
-	            catch
-	            {
-	                cachedIcon = null;
-	            }
-	        }
-
-	        // 3. Last-resort raw SPR2 fallback
-	        if (cachedIcon == null)
-	        {
-	            try
-	            {
-	                var spr = obj.Resource.Get<SPR2>(catID) ?? obj.Resource.Get<SPR2>(100);
-	                if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
-	                {
-	                    cachedIcon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
 	                }
 	            }
 	            catch
@@ -494,6 +476,67 @@ namespace FSO.Client.UI.Controls.Catalog
 	    }
 
 	    return IconCache[GUID];
+	}
+
+	private struct DGRPLayerData
+	{
+	    public Texture2D Texture;
+	    public Vector2 Offset;
+
+	    public DGRPLayerData(Texture2D texture, Vector2 offset)
+	    {
+	        Texture = texture;
+	        Offset = offset;
+	    }
+	}
+
+	private Texture2D CompositeDGRPImage(DGRPImage img)
+	{
+	    var device = GameFacade.GraphicsDevice;
+
+	    int minX = int.MaxValue, minY = int.MaxValue;
+	    int maxX = int.MinValue, maxY = int.MinValue;
+
+	    List<DGRPLayerData> validLayers = new List<DGRPLayerData>();
+
+	    foreach (var sprLayer in img.Sprites)
+	    {
+	        var tex = sprLayer.GetTexture(device);
+	        if (tex == null || tex.Width == 0 || tex.Height == 0) continue;
+
+	        Vector2 offset = sprLayer.SpriteOffset;
+	        validLayers.Add(new DGRPLayerData(tex, offset));
+
+	        minX = Math.Min(minX, (int)offset.X);
+	        minY = Math.Min(minY, (int)offset.Y);
+	        maxX = Math.Max(maxX, (int)offset.X + tex.Width);
+	        maxY = Math.Max(maxY, (int)offset.Y + tex.Height);
+	    }
+
+	    if (validLayers.Count == 0) return null;
+
+	    int totalWidth = maxX - minX;
+	    int totalHeight = maxY - minY;
+
+	    if (totalWidth <= 0 || totalHeight <= 0) return null;
+
+	    RenderTarget2D renderTarget = new RenderTarget2D(device, totalWidth, totalHeight);
+	    device.SetRenderTarget(renderTarget);
+	    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
+
+	    using (SpriteBatch spriteBatch = new SpriteBatch(device))
+	    {
+	        spriteBatch.Begin();
+	        foreach (var layer in validLayers)
+	        {
+	            Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
+	            spriteBatch.Draw(layer.Texture, drawPos, Microsoft.Xna.Framework.Color.White);
+	        }
+	        spriteBatch.End();
+	    }
+
+	    device.SetRenderTarget(null);
+	    return renderTarget;
 	}
 
         private class CatalogSorter : IComparer<UICatalogElement>

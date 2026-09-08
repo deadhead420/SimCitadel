@@ -439,7 +439,7 @@ namespace FSO.Client.UI.Controls.Catalog
             return null;
         }
 
-        // 1. Try pre-rendered catalog BMP thumbnail
+        // 1. Try static BMP thumbnail
         var catID = obj.OBJ?.CatalogStringsID ?? 0;
         var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
         if (bmp != null)
@@ -447,20 +447,24 @@ namespace FSO.Client.UI.Controls.Catalog
             cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
         }
 
-        // 2. Fallback for zero-BMP objects: render directly from SPR2 sprite chunk
+        // 2. Fallback for objects with zero BMP chunks: evaluate SPR2 frames
         if (cachedIcon == null)
         {
             try
             {
-                // Look for SPR2 matching catalog ID or standard chunk IDs (100, 2000)
                 var spr = obj.Resource.Get<SPR2>(catID)
                        ?? obj.Resource.Get<SPR2>(100)
                        ?? obj.Resource.Get<SPR2>(2000);
 
                 if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
                 {
-		    int frameIdx = (spr.Frames.Length >= 3) ? 2 : 0;
-	            cachedIcon = spr.Frames[frameIdx].GetTexture(GameFacade.GraphicsDevice);
+                    // Select frame: Index 1 or 2 typically corresponds to front-south isometric view
+                    int targetFrame = 0;
+                    if (spr.Frames.Length >= 12) targetFrame = 9;      // Medium/Close zoom front view
+                    else if (spr.Frames.Length >= 4) targetFrame = 1;  // Far zoom front view
+                    else targetFrame = 0;
+
+                    cachedIcon = spr.Frames[targetFrame].GetTexture(GameFacade.GraphicsDevice);
                 }
             }
             catch
@@ -469,7 +473,6 @@ namespace FSO.Client.UI.Controls.Catalog
             }
         }
 
-        // Always store entry in dictionary to eliminate KeyNotFoundException
         IconCache[GUID] = cachedIcon;
     }
 

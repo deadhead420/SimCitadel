@@ -498,11 +498,13 @@ namespace FSO.Client.UI.Controls.Catalog
 private Texture2D CompositeDGRPImage(DGRPImage img)
 {
     var device = GameFacade.GraphicsDevice;
+    if (img == null || img.Sprites == null || img.Sprites.Length == 0) return null;
 
-    int minX = int.MaxValue, minY = int.MaxValue;
-    int maxX = int.MinValue, maxY = int.MinValue;
-
+    // Collect valid layers and compute normalized offset bounds
     List<DGRPLayerData> validLayers = new List<DGRPLayerData>();
+
+    float minX = float.MaxValue, minY = float.MaxValue;
+    float maxX = float.MinValue, maxY = float.MinValue;
 
     foreach (var sprLayer in img.Sprites)
     {
@@ -511,35 +513,34 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
         if (worldTex.Pixel == null || dims.X <= 0 || dims.Y <= 0) continue;
 
-        Texture2D tex = worldTex.Pixel;
-        Rectangle srcRect = new Rectangle(0, 0, dims.X, dims.Y);
-
+        // TS1 DGRP sprite offsets are anchor-relative
         Vector2 offset = sprLayer.SpriteOffset;
-        validLayers.Add(new DGRPLayerData(tex, srcRect, offset, sprLayer.Flip));
+        validLayers.Add(new DGRPLayerData(worldTex.Pixel, new Rectangle(0, 0, dims.X, dims.Y), offset, sprLayer.Flip));
 
-        minX = Math.Min(minX, (int)offset.X);
-        minY = Math.Min(minY, (int)offset.Y);
-        maxX = Math.Max(maxX, (int)offset.X + dims.X);
-        maxY = Math.Max(maxY, (int)offset.Y + dims.Y);
+        minX = Math.Min(minX, offset.X);
+        minY = Math.Min(minY, offset.Y);
+        maxX = Math.Max(maxX, offset.X + dims.X);
+        maxY = Math.Max(maxY, offset.Y + dims.Y);
     }
 
     if (validLayers.Count == 0) return null;
 
-    int totalWidth = maxX - minX;
-    int totalHeight = maxY - minY;
+    int totalWidth = (int)Math.Ceiling(maxX - minX);
+    int totalHeight = (int)Math.Ceiling(maxY - minY);
 
     if (totalWidth <= 0 || totalHeight <= 0) return null;
 
-    // 1. Composite all layers onto an unscaled render target
+    // 1. Composite all layers onto an unscaled transparent canvas
     RenderTarget2D compositeTarget = new RenderTarget2D(device, totalWidth, totalHeight);
     device.SetRenderTarget(compositeTarget);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);
 
     using (SpriteBatch spriteBatch = new SpriteBatch(device))
     {
-        spriteBatch.Begin();
+        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         foreach (var layer in validLayers)
         {
+            // Normalize offsets relative to bounding box origin
             Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
             SpriteEffects effects = layer.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
@@ -558,12 +559,12 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
         spriteBatch.End();
     }
 
-    // 2. Center and scale proportionally into a 64x64 icon box
+    // 2. Scale proportionally into the standard 64x64 catalog slot
     RenderTarget2D finalIcon = new RenderTarget2D(device, 64, 64);
     device.SetRenderTarget(finalIcon);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);
 
-    float scale = Math.Min(56f / totalWidth, 56f / totalHeight);
+    float scale = Math.Min(52f / totalWidth, 52f / totalHeight);
     int destW = (int)(totalWidth * scale);
     int destH = (int)(totalHeight * scale);
     Rectangle destRect = new Rectangle((64 - destW) / 2, (64 - destH) / 2, destW, destH);

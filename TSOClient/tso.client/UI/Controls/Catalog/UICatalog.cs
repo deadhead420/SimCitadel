@@ -425,21 +425,38 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-        public Texture2D GetObjIcon(uint GUID)
+	public Texture2D GetObjIcon(uint GUID)
+{
+    if (!IconCache.ContainsKey(GUID)) {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
         {
-            if (!IconCache.ContainsKey(GUID)) {
-                var obj = Content.Content.Get().WorldObjects.Get(GUID);
-                if (obj == null)
-                {
-                    IconCache[GUID] = null;
-                    return null;
-                }
-                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
-                else IconCache[GUID] = null;
-            }
-            return IconCache[GUID];
+            IconCache[GUID] = null;
+            return null;
         }
+
+        // --- DIAGNOSTIC LOGGING ---
+        var catID = obj.OBJ?.CatalogStringsID ?? 0;
+        var masterID = obj.OBJ?.MasterID ?? 0;
+        var bmpList = obj.Resource.List<BMP>();
+        var bmpCount = bmpList != null ? bmpList.Count : 0;
+
+        System.Console.WriteLine($"[CATALOG DEBUG] GUID: 0x{GUID:X8} | CatalogStringsID: {catID} | MasterID: 0x{masterID:X8} | BMP Chunks Found: {bmpCount}");
+        if (bmpCount > 0)
+        {
+            foreach (var b in bmpList)
+            {
+                System.Console.WriteLine($"   -> BMP Chunk ID: {b.ChunkID}");
+            }
+        }
+        // --------------------------
+
+        var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+        if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+    }
+
+    return IconCache[GUID];
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

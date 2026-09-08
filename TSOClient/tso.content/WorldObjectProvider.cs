@@ -394,66 +394,36 @@ namespace FSO.Content
         /// <param name="id">ID of the resource to load.</param>
         /// <returns>An object's resource of the specified type.</returns>
 	public override T Get<T>(ushort id)
-	{
-	    var type = typeof(T);
-	    if (type == typeof(OTFTable))
-	    {
-	        if (Tuning != null)
-	        {
-	            return (T)(object)Tuning.GetTable(id);
-	        }
-	        else
-	        {
-	            return default(T);
-	        }
-	    }
+        {
+            var type = typeof(T);
+            if (type == typeof(OTFTable))
+            {
+                if (Tuning != null)
+                {
+                    return (T)(object)Tuning.GetTable(id);
+                }
+                else
+                {
+                    return default(T);
+                }
+            }
 
-	    T item1 = this.Iff.Get<T>(id);
-	    if (item1 != null)
-	    {
-	        return item1;
-	    }
+            T item1 = this.Iff.Get<T>(id);
+            if (item1 != null)
+            {
+                return item1;
+            }
 
-	    if (this.Sprites != null)
-	    {
-	        T item2 = this.Sprites.Get<T>(id);
-	        if (item2 != null)
-	        {
-	            return item2;
-	        }
-	    }
-
-	    // Check SemiGlobal for resources if available
-	    if (this.SemiGlobal != null)
-	    {
-	        T item3 = this.SemiGlobal.Get<T>(id);
-	        if (item3 != null)
-	        {
-	            return item3;
-	        }
-	    }
-
-	    // Fallback for catalog thumbnails: if an exact BMP ID was missed, return the first available BMP in the file
-	    if (type == typeof(BMP))
-	    {
-	        var allBmps = this.Iff.List<BMP>();
-	        if (allBmps != null && allBmps.Count > 0)
-	        {
-	            return (T)(object)allBmps[0];
-	        }
-
-	        if (this.SemiGlobal != null)
-	        {
-	            var sgBmps = this.SemiGlobal.List<BMP>();
-	            if (sgBmps != null && sgBmps.Count > 0)
-	            {
-	                return (T)(object)sgBmps[0];
-	            }
-	        }
-	    }
-
-	    return default(T);
-	}
+            if (this.Sprites != null)
+            {
+                T item2 = this.Sprites.Get<T>(id);
+                if (item2 != null)
+                {
+                    return item2;
+                }
+            }
+            return default(T);
+        }
 
         public override List<T> List<T>()
         {

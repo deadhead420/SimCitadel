@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
+using FSO.Client.UI.Model;
 using FSO.Content;
 using Microsoft.Xna.Framework.Graphics;
 using FSO.Files.Formats.IFF.Chunks;
@@ -427,7 +428,10 @@ namespace FSO.Client.UI.Controls.Catalog
 
 	public Texture2D GetObjIcon(uint GUID)
 {
-    if (!IconCache.ContainsKey(GUID)) {
+    if (GUID == 0) return null;
+
+    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
+    {
         var obj = Content.Content.Get().WorldObjects.Get(GUID);
         if (obj == null)
         {
@@ -435,24 +439,37 @@ namespace FSO.Client.UI.Controls.Catalog
             return null;
         }
 
-        // --- DIAGNOSTIC LOGGING ---
+        // 1. Try pre-rendered catalog BMP thumbnail
         var catID = obj.OBJ?.CatalogStringsID ?? 0;
-        var masterID = obj.OBJ?.MasterID ?? 0;
-        var bmpList = obj.Resource.List<BMP>();
-        var bmpCount = bmpList != null ? bmpList.Count : 0;
-
-        System.Console.WriteLine($"[CATALOG DEBUG] GUID: 0x{GUID:X8} | CatalogStringsID: {catID} | MasterID: 0x{masterID:X8} | BMP Chunks Found: {bmpCount}");
-        if (bmpCount > 0)
+        var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
+        if (bmp != null)
         {
-            foreach (var b in bmpList)
+            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+        }
+
+        // 2. Fallback for zero-BMP objects: render directly from SPR2 sprite chunk
+        if (cachedIcon == null)
+        {
+            try
             {
-                System.Console.WriteLine($"   -> BMP Chunk ID: {b.ChunkID}");
+                // Look for SPR2 matching catalog ID or standard chunk IDs (100, 2000)
+                var spr = obj.Resource.Get<SPR2>(catID)
+                       ?? obj.Resource.Get<SPR2>(100)
+                       ?? obj.Resource.Get<SPR2>(2000);
+
+                if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
+                {
+                    cachedIcon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+                }
+            }
+            catch
+            {
+                cachedIcon = null;
             }
         }
-        // --------------------------
 
-        var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-        if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+        // Always store entry in dictionary to eliminate KeyNotFoundException
+        IconCache[GUID] = cachedIcon;
     }
 
     return IconCache[GUID];

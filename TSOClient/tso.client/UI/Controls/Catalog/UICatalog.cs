@@ -427,59 +427,74 @@ namespace FSO.Client.UI.Controls.Catalog
         }
 
 	public Texture2D GetObjIcon(uint GUID)
-{
-    if (GUID == 0) return null;
+	{
+	    if (GUID == 0) return null;
 
-    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-    {
-        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-        if (obj == null)
-        {
-            IconCache[GUID] = null;
-            return null;
-        }
+	    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
+	    {
+	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+	        if (obj == null)
+	        {
+	            IconCache[GUID] = null;
+	            return null;
+	        }
 
-        // 1. Try static BMP thumbnail
-        var catID = obj.OBJ?.CatalogStringsID ?? 0;
-        var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
-        if (bmp != null)
-        {
-            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-        }
+	        // 1. Try pre-rendered BMP thumbnail
+	        var catID = obj.OBJ?.CatalogStringsID ?? 0;
+	        var bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
+	        if (bmp != null)
+	        {
+	            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+	        }
 
-        // 2. Fallback for objects with zero BMP chunks: evaluate SPR2 frames
-        if (cachedIcon == null)
-        {
-            try
-            {
-                var spr = obj.Resource.Get<SPR2>(catID)
-                       ?? obj.Resource.Get<SPR2>(100)
-                       ?? obj.Resource.Get<SPR2>(2000);
+	        // 2. Fallback via DGRP lookup for zero-BMP objects
+	        if (cachedIcon == null)
+	        {
+	            try
+	            {
+	                // Fetch DGRP via CatalogStringsID, BaseGraphicID, or default 100
+	                var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
+	                var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
 
-                if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
-                {
-                    // Select frame: Index 1 or 2 typically corresponds to front-south isometric view
-                    int targetFrame = 0;
-                    if (spr.Frames.Length >= 12) targetFrame = 9;      // Medium/Close zoom front view
-                    else if (spr.Frames.Length >= 4) targetFrame = 3;  // Far zoom front view
-                    else targetFrame = 0;
+	                if (dgrp != null)
+	                {
+	                    // Direction 0x10 (LeftFront/South), Zoom 1 (Far/Medium), WorldRotation 0
+	                    var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
+	                    if (img != null && img.Sprites != null && img.Sprites.Length > 0)
+	                    {
+	                        var spriteLayer = img.Sprites[0];
+	                        cachedIcon = spriteLayer.GetTexture(GameFacade.GraphicsDevice);
+	                    }
+	                }
+	            }
+	            catch
+	            {
+	                cachedIcon = null;
+	            }
+	        }
 
-		    System.Console.WriteLine($"[SPR2 DEBUG] GUID: 0x{GUID:X8} | Total SPR2 Frames: {spr.Frames.Length}");
+	        // 3. Last-resort raw SPR2 fallback
+	        if (cachedIcon == null)
+	        {
+	            try
+	            {
+	                var spr = obj.Resource.Get<SPR2>(catID) ?? obj.Resource.Get<SPR2>(100);
+	                if (spr != null && spr.Frames != null && spr.Frames.Length > 0)
+	                {
+	                    cachedIcon = spr.Frames[0].GetTexture(GameFacade.GraphicsDevice);
+	                }
+	            }
+	            catch
+	            {
+	                cachedIcon = null;
+	            }
+	        }
 
-                    cachedIcon = spr.Frames[targetFrame].GetTexture(GameFacade.GraphicsDevice);
-                }
-            }
-            catch
-            {
-                cachedIcon = null;
-            }
-        }
+	        IconCache[GUID] = cachedIcon;
+	    }
 
-        IconCache[GUID] = cachedIcon;
-    }
-
-    return IconCache[GUID];
-}
+	    return IconCache[GUID];
+	}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

@@ -494,6 +494,30 @@ namespace FSO.Client.UI.Controls.Catalog
     }
 }
 
+private SPR2Frame GetSPR2Frame(DGRPSprite sprite)
+{
+    try
+    {
+        // Access the private Parent property on DGRPSprite via reflection to reach the IffFile
+        var parentProp = typeof(DGRPSprite).GetProperty("Parent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (parentProp == null) return null;
+
+        var dgrp = parentProp.GetValue(sprite) as DGRP;
+        if (dgrp == null || dgrp.ChunkParent == null) return null;
+
+        var iff = dgrp.ChunkParent;
+        var spr2 = iff.Get<SPR2>((ushort)sprite.SpriteID);
+        if (spr2 != null && sprite.SpriteFrameIndex < spr2.Frames.Length)
+        {
+            return spr2.Frames[sprite.SpriteFrameIndex];
+        }
+    }
+    catch
+    {
+        // Fallback if reflection fails
+    }
+    return null;
+}
 
 private Texture2D CompositeDGRPImage(DGRPImage img)
 {
@@ -512,18 +536,27 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
         if (worldTex.Pixel == null || dims.X <= 0 || dims.Y <= 0) continue;
 
-        Texture2D tex = worldTex.Pixel;
-        // Use full dimensions of the provided frame texture
-        Rectangle srcRect = new Rectangle(0, 0, tex.Width, tex.Height);
+        // Retrieve the SPR2 frame to get exact atlas coordinates via Position
+        var spr2Frame = GetSPR2Frame(sprLayer);
+        Rectangle srcRect;
+
+        if (spr2Frame != null)
+        {
+            // Crop exact frame sub-rectangle out of atlas using Position
+            srcRect = new Rectangle((int)spr2Frame.Position.X, (int)spr2Frame.Position.Y, dims.X, dims.Y);
+        }
+        else
+        {
+            srcRect = new Rectangle(0, 0, dims.X, dims.Y);
+        }
 
         Vector2 offset = sprLayer.SpriteOffset;
-        validLayers.Add(new DGRPLayerData(tex, srcRect, offset, sprLayer.Flip));
+        validLayers.Add(new DGRPLayerData(worldTex.Pixel, srcRect, offset, sprLayer.Flip));
 
-        // Track precise object bounds based on layer offsets and frame dimensions
         minX = Math.Min(minX, offset.X);
         minY = Math.Min(minY, offset.Y);
-        maxX = Math.Max(maxX, offset.X + tex.Width);
-        maxY = Math.Max(maxY, offset.Y + tex.Height);
+        maxX = Math.Max(maxX, offset.X + dims.X);
+        maxY = Math.Max(maxY, offset.Y + dims.Y);
     }
 
     if (validLayers.Count == 0) return null;
@@ -533,7 +566,7 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
 
     if (totalWidth <= 0 || totalHeight <= 0) return null;
 
-    // 1. Composite layers onto a transparent surface using normalized offsets
+    // 1. Composite layers onto target using sub-rectangle crops and normalized offsets
     RenderTarget2D compositeTarget = new RenderTarget2D(device, totalWidth, totalHeight);
     device.SetRenderTarget(compositeTarget);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);
@@ -543,14 +576,13 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         foreach (var layer in validLayers)
         {
-            // Normalize draw positions relative to min bounds (shifts negative offsets into positive screen space)
             Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
             SpriteEffects effects = layer.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
             spriteBatch.Draw(
                 layer.Texture,
                 drawPos,
-                layer.SourceRect,
+                layer.SourceRect, // Crops atlas frame region
                 Microsoft.Xna.Framework.Color.White,
                 0f,
                 Vector2.Zero,
@@ -562,7 +594,7 @@ private Texture2D CompositeDGRPImage(DGRPImage img)
         spriteBatch.End();
     }
 
-    // 2. Scale & center proportionally into 64x64 icon box
+    // 2. Center and scale result into 64x64 catalog slot
     RenderTarget2D finalIcon = new RenderTarget2D(device, 64, 64);
     device.SetRenderTarget(finalIcon);
     device.Clear(Microsoft.Xna.Framework.Color.Transparent);

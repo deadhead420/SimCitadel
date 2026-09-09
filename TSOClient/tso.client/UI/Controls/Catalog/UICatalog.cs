@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FSO.Client.UI.Framework;
-using FSO.Client.UI.Model;
 using FSO.Content;
-using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using FSO.Files.Formats.IFF.Chunks;
 using FSO.Client.UI.Panels.LotControls;
@@ -410,7 +408,10 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-                elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
+		elem.Icon = (elem.Info.Special?.Res != null)
+                    ? (elem.Info.Special.Res.GetThumb(elem.Info.Special.ResID) ?? elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID))
+                    : GetObjIcon(elem.Info.Item.GUID);
+
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;
                 elem.Y = (i / halfPage) * 45 + 2;
@@ -427,201 +428,39 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-	private struct DGRPLayerData
-{
-    public Texture2D Texture;
-    public Rectangle SourceRect;
-    public Vector2 Offset;
-    public bool Flip;
-
-    public DGRPLayerData(Texture2D texture, Rectangle sourceRect, Vector2 offset, bool flip)
-    {
-        Texture = texture;
-        SourceRect = sourceRect;
-        Offset = offset;
-        Flip = flip;
-    }
-}
-
-private SPR2Frame GetSPR2Frame(DGRPSprite sprite)
-{
-    try
-    {
-        var parentProp = typeof(DGRPSprite).GetProperty("Parent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (parentProp == null) return null;
-
-        var dgrp = parentProp.GetValue(sprite) as DGRP;
-        if (dgrp == null || dgrp.ChunkParent == null) return null;
-
-        var iff = dgrp.ChunkParent;
-        var spr2 = iff.Get<SPR2>((ushort)sprite.SpriteID);
-        if (spr2 != null && sprite.SpriteFrameIndex < spr2.Frames.Length)
+	public Texture2D GetObjIcon(uint GUID)
         {
-            return spr2.Frames[sprite.SpriteFrameIndex];
-        }
-    }
-    catch
-    {
-        // Fallback if reflection fails
-    }
-    return null;
-}
+            if (GUID == 0) return null;
 
-private Texture2D CompositeDGRPImage(DGRPImage img)
-{
-    var device = GameFacade.GraphicsDevice;
-    if (img == null || img.Sprites == null || img.Sprites.Length == 0) return null;
-
-    List<DGRPLayerData> validLayers = new List<DGRPLayerData>();
-
-    float minX = float.MaxValue, minY = float.MaxValue;
-    float maxX = float.MinValue, maxY = float.MinValue;
-
-    foreach (var sprLayer in img.Sprites)
-    {
-        var worldTex = sprLayer.GetWorldTexture(device);
-        var dims = sprLayer.GetDimensions();
-
-        if (worldTex.Pixel == null || dims.X <= 0 || dims.Y <= 0) continue;
-
-        var spr2Frame = GetSPR2Frame(sprLayer);
-        Rectangle srcRect;
-
-        if (spr2Frame != null)
-        {
-            srcRect = new Rectangle((int)spr2Frame.Position.X, (int)spr2Frame.Position.Y, dims.X, dims.Y);
-        }
-        else
-        {
-            srcRect = new Rectangle(0, 0, dims.X, dims.Y);
-        }
-
-        Vector2 offset = sprLayer.SpriteOffset;
-        validLayers.Add(new DGRPLayerData(worldTex.Pixel, srcRect, offset, sprLayer.Flip));
-
-        minX = Math.Min(minX, offset.X);
-        minY = Math.Min(minY, offset.Y);
-        maxX = Math.Max(maxX, offset.X + dims.X);
-        maxY = Math.Max(maxY, offset.Y + dims.Y);
-    }
-
-    if (validLayers.Count == 0) return null;
-
-    int totalWidth = (int)Math.Ceiling(maxX - minX);
-    int totalHeight = (int)Math.Ceiling(maxY - minY);
-
-    if (totalWidth <= 0 || totalHeight <= 0) return null;
-
-    RenderTarget2D compositeTarget = new RenderTarget2D(device, totalWidth, totalHeight);
-    device.SetRenderTarget(compositeTarget);
-    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
-
-    using (SpriteBatch spriteBatch = new SpriteBatch(device))
-    {
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-        foreach (var layer in validLayers)
-        {
-            Vector2 drawPos = new Vector2(layer.Offset.X - minX, layer.Offset.Y - minY);
-            SpriteEffects effects = layer.Flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-
-            spriteBatch.Draw(
-                layer.Texture,
-                drawPos,
-                layer.SourceRect,
-                Microsoft.Xna.Framework.Color.White,
-                0f,
-                Vector2.Zero,
-                1f,
-                effects,
-                0f
-            );
-        }
-        spriteBatch.End();
-    }
-
-    RenderTarget2D finalIcon = new RenderTarget2D(device, 64, 64);
-    device.SetRenderTarget(finalIcon);
-    device.Clear(Microsoft.Xna.Framework.Color.Transparent);
-
-    float scale = Math.Min(52f / totalWidth, 52f / totalHeight);
-    int destW = (int)(totalWidth * scale);
-    int destH = (int)(totalHeight * scale);
-    Rectangle destRect = new Rectangle((64 - destW) / 2, (64 - destH) / 2, destW, destH);
-
-    using (SpriteBatch spriteBatch = new SpriteBatch(device))
-    {
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, null, null);
-        spriteBatch.Draw(compositeTarget, destRect, Microsoft.Xna.Framework.Color.White);
-        spriteBatch.End();
-    }
-
-    device.SetRenderTarget(null);
-    compositeTarget.Dispose();
-
-    return finalIcon;
-}
-
-public Texture2D GetObjIcon(uint GUID)
-{
-    if (GUID == 0) return null;
-
-    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-    {
-        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-        if (obj == null)
-        {
-            IconCache[GUID] = null;
-            return null;
-        }
-
-        var catID = obj.OBJ?.CatalogStringsID ?? 0;
-        BMP bmp = null;
-
-        if (catID != 0)
-        {
-            // 1. Check primary BMP chunk ID
-            bmp = obj.Resource.Get<BMP>(catID);
-
-            // 2. If missing, check variant offsets (e.g. store offset 2000 or base 100)
-            if (bmp == null)
+            if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
             {
-                bmp = obj.Resource.Get<BMP>((ushort)(catID + 2000)) ?? obj.Resource.Get<BMP>(100);
-            }
-        }
-
-        if (bmp != null)
-        {
-            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-        }
-
-        // 3. Fallback: DGRP composite rendering only if no valid BMP chunk exists
-        if (cachedIcon == null)
-        {
-            try
-            {
-                var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
-                var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
-
-                if (dgrp != null)
+                var obj = Content.Content.Get().WorldObjects.Get(GUID);
+                if (obj == null)
                 {
-                    var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
-                    if (img != null && img.Sprites != null && img.Sprites.Length > 0)
-                    {
-                        cachedIcon = CompositeDGRPImage(img);
-                    }
+                    IconCache[GUID] = null;
+                    return null;
                 }
+
+                // Try CatalogStringsID first
+                var catID = obj.OBJ?.CatalogStringsID ?? 0;
+                BMP bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
+
+                // Fallback to BaseGraphicID or default chunk 100 if CatalogStringsID failed
+                if (bmp == null)
+                {
+                    var graphicID = obj.OBJ?.BaseGraphicID ?? 100;
+                    bmp = obj.Resource.Get<BMP>(graphicID) ?? obj.Resource.Get<BMP>(100);
+                }
+
+                if (bmp != null)
+                {
+                    cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                }
+
+                IconCache[GUID] = cachedIcon;
             }
-            catch
-            {
-                cachedIcon = null;
-            }
+            return IconCache[GUID];
         }
-
-        IconCache[GUID] = cachedIcon;
-    }
-
-    return cachedIcon;
-}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

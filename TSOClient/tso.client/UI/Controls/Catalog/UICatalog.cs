@@ -455,22 +455,29 @@ namespace FSO.Client.UI.Controls.Catalog
 			System.Console.WriteLine($"\n=================== [CATALOG ICON DEBUG] ===================");
     System.Console.WriteLine($"GUID: 0x{GUID:X8} | CatalogStringsID: {obj.OBJ.CatalogStringsID}");
 
-    // Check if the object contains ANY BMP chunks at all
-    var allBmps = obj.Resource.List<BMP>();
-    System.Console.WriteLine($"  -> Total BMP Chunks Found in Resource: {(allBmps != null ? allBmps.Count : 0)}");
+    // 1. Inspect chunks in Main IFF
+    if (obj.Resource.Iff != null)
+    {
+        System.Console.WriteLine("Main IFF Chunks:");
+        var chunks = obj.Resource.Iff.SilentListAll();
+        foreach (var c in chunks)
+        {
+            System.Console.WriteLine($"  -> MainIFF Chunk Type: {c.GetType().Name} | ChunkID: {c.ChunkID}");
+        }
+    }
 
-    if (allBmps != null && allBmps.Count > 0)
+    // 2. Inspect chunks in Sprites IFF
+    if (obj.Resource.Sprites != null)
     {
-        System.Console.WriteLine("  -> BMPs exist! Using first available BMP as catalog icon.");
-        cachedIcon = allBmps[0].GetTexture(GameFacade.GraphicsDevice);
+        System.Console.WriteLine("Sprites IFF Chunks:");
+        var spriteChunks = obj.Resource.Sprites.SilentListAll();
+        foreach (var c in spriteChunks)
+        {
+            System.Console.WriteLine($"  -> SpritesIFF Chunk Type: {c.GetType().Name} | ChunkID: {c.ChunkID}");
+        }
     }
-    else
-    {
-        // Check if underlying Iff or Sprites containers exist
-        System.Console.WriteLine($"  -> MainIff Present: {(obj.Resource.MainIff != null)}");
-        System.Console.WriteLine($"  -> Sprites Iff Present: {(obj.Resource.Sprites != null)}");
-    }
-    System.Console.WriteLine($"============================================================\n");
+
+    System.Console.WriteLine($"==================================================================\n");
 		}
 
                 IconCache[GUID] = cachedIcon;

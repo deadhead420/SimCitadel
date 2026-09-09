@@ -427,10 +427,7 @@ namespace FSO.Client.UI.Controls.Catalog
 
 	public Texture2D GetObjIcon(uint GUID)
         {
-            if (GUID == 0) return null;
-
-            if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-            {
+            if (!IconCache.ContainsKey(GUID)) {
                 var obj = Content.Content.Get().WorldObjects.Get(GUID);
                 if (obj == null)
                 {
@@ -438,41 +435,41 @@ namespace FSO.Client.UI.Controls.Catalog
                     return null;
                 }
 
-                // 1. Try static BMP chunk first
+                Texture2D cachedIcon = null;
+
+                // 1. Check CatalogStringsID BMP
                 var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+
+                // 2. Fallback: Check BMP ID 1 (common default catalog BMP in IFF/FAR resources)
+                if (bmp == null) bmp = obj.Resource.Get<BMP>(1);
+
+                // 3. Fallback: Check BMP ID 0
+                if (bmp == null) bmp = obj.Resource.Get<BMP>(0);
+
                 if (bmp != null)
                 {
                     cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
                 }
+		else
+		{
+		    System.Console.WriteLine($"\n=================== [CATALOG ICON DEBUG] ===================");
+		    System.Console.WriteLine($"GUID: 0x{GUID:X8} | CatalogStringsID: {obj.OBJ.CatalogStringsID}");
 
-                // 2. Fallback for objects with missing static BMP chunks (Toilet, Balloons, Ceiling Fan)
-                if (cachedIcon == null && ActiveVM != null)
-                {
-                    try
-                    {
-                        var tempEntity = ActiveVM.Context.CreateObjectInstance(
-                            GUID,
-                            FSO.LotView.Model.LotTilePos.OUT_OF_WORLD,
-                            FSO.LotView.Model.Direction.SOUTH,
-                            true
-                        );
+		    // Check common BMP resource IDs directly
+		    ushort[] checkIDs = new ushort[] { 0, 1, 100, 101, 1000, obj.OBJ.CatalogStringsID };
+		    foreach (var id in checkIDs)
+		    {
+		        var testBmp = obj.Resource.Get<BMP>(id);
+		        System.Console.WriteLine($"  -> BMP Check ID {id}: {(testBmp != null ? "FOUND" : "null")}");
+		    }
 
-                        if (tempEntity?.BaseObject != null)
-                        {
-                            cachedIcon = tempEntity.BaseObject.GetIcon(GameFacade.GraphicsDevice, 0);
-                        }
-
-                        tempEntity?.Delete(ActiveVM.Context);
-                    }
-                    catch
-                    {
-                        cachedIcon = null;
-                    }
-                }
+		    // Print raw Resource group info if available
+		    System.Console.WriteLine($"  -> Resource Container: {obj.Resource.GetType().Name}");
+		    System.Console.WriteLine($"============================================================\n");
+		}
 
                 IconCache[GUID] = cachedIcon;
             }
-
             return IconCache[GUID];
         }
 

@@ -575,34 +575,45 @@ public Texture2D GetObjIcon(uint GUID)
         }
 
         var catID = obj.OBJ?.CatalogStringsID ?? 0;
+        BMP bmp = null;
 
-        // Force DGRP compositing first
-        try
+        if (catID != 0)
         {
-            var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
-            var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
+            // 1. Check primary BMP chunk ID
+            bmp = obj.Resource.Get<BMP>(catID);
 
-            if (dgrp != null)
+            // 2. If missing, check variant offsets (e.g. store offset 2000 or base 100)
+            if (bmp == null)
             {
-                var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
-                if (img != null && img.Sprites != null && img.Sprites.Length > 0)
-                {
-                    cachedIcon = CompositeDGRPImage(img);
-                }
+                bmp = obj.Resource.Get<BMP>((ushort)(catID + 2000)) ?? obj.Resource.Get<BMP>(100);
             }
         }
-        catch
+
+        if (bmp != null)
         {
-            cachedIcon = null;
+            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
         }
 
-        // Fallback to static BMP thumbnail if DGRP compositing yields nothing
-        if (cachedIcon == null && catID != 0)
+        // 3. Fallback: DGRP composite rendering only if no valid BMP chunk exists
+        if (cachedIcon == null)
         {
-            var bmp = obj.Resource.Get<BMP>(catID);
-            if (bmp != null)
+            try
             {
-                cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                var graphicID = catID != 0 ? catID : (obj.OBJ?.BaseGraphicID ?? 100);
+                var dgrp = obj.Resource.Get<DGRP>(graphicID) ?? obj.Resource.Get<DGRP>(100);
+
+                if (dgrp != null)
+                {
+                    var img = dgrp.GetImage(0x10, 1, 0) ?? dgrp.Images?.FirstOrDefault();
+                    if (img != null && img.Sprites != null && img.Sprites.Length > 0)
+                    {
+                        cachedIcon = CompositeDGRPImage(img);
+                    }
+                }
+            }
+            catch
+            {
+                cachedIcon = null;
             }
         }
 
@@ -610,7 +621,7 @@ public Texture2D GetObjIcon(uint GUID)
     }
 
     return cachedIcon;
-}	
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

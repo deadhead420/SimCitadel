@@ -408,6 +408,23 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
+		if (elem.Info.Item.GUID == 0x84E0774C || elem.Info.Item.GUID == 0x3C566968)
+{
+    System.Console.WriteLine($"\n=================== [CATALOG ELEM DEBUG] ===================");
+    System.Console.WriteLine($"GUID: 0x{elem.Info.Item.GUID:X8}");
+    System.Console.WriteLine($"  -> Special Present: {(elem.Info.Special != null)}");
+    if (elem.Info.Special != null)
+    {
+        System.Console.WriteLine($"  -> Special.Res Present: {(elem.Info.Special.Res != null)}");
+        System.Console.WriteLine($"  -> Special.ResID: {elem.Info.Special.ResID}");
+        if (elem.Info.Special.Res != null)
+        {
+            var spIcon = elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID);
+            System.Console.WriteLine($"  -> Special.Res.GetIcon Result: {(spIcon != null ? "SUCCESS" : "NULL")}");
+        }
+    }
+    System.Console.WriteLine($"============================================================\n");
+}
                 elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;

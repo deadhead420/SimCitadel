@@ -436,14 +436,35 @@ namespace FSO.Client.UI.Controls.Catalog
 	    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
 	    {
 	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null)
+	        if (obj == null || obj.OBJ == null)
 	        {
 	            IconCache[GUID] = null;
 	            return null;
 	        }
 
-	        // Delegate to VMGameObject.GetIcon, which handles MasterDefinition resolution
-	        cachedIcon = obj.GetIcon(GameFacade.GraphicsDevice, 0);
+	        var def = obj.OBJ;
+
+	        // 1. Check primary catalog strings BMP chunk
+	        var bmpID = (ushort)def.CatalogStringsID;
+	        BMP bmp = bmpID != 0 ? obj.Resource.Get<BMP>(bmpID) : null;
+
+	        // 2. Check store variant offset (e.g., +2000)
+	        if (bmp == null && bmpID != 0)
+	        {
+	            bmp = obj.Resource.Get<BMP>((ushort)(bmpID + 2000));
+	        }
+
+	        // 3. Fallback to BaseGraphicID if CatalogStringsID is zero or missing
+	        if (bmp == null && def.BaseGraphicID != 0)
+	        {
+	            bmp = obj.Resource.Get<BMP>(def.BaseGraphicID) ?? obj.Resource.Get<BMP>(100);
+	        }
+
+	        if (bmp != null)
+	        {
+	            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+	        }
+
 	        IconCache[GUID] = cachedIcon;
 	    }
 

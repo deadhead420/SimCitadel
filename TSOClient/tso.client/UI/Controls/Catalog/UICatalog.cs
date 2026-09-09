@@ -11,9 +11,10 @@ using FSO.SimAntics.Model;
 using FSO.Content.Interfaces;
 using FSO.Client.UI.Panels;
 using System.Text.RegularExpressions;
+using FSO.SimAntics.Engine;
 using FSO.LotView;
 using FSO.LotView.Components;
-using FSO.SimAntics.Engine;
+using FSO.SimAntics.Engine.Scopes;
 
 namespace FSO.Client.UI.Controls.Catalog
 {
@@ -454,6 +455,105 @@ namespace FSO.Client.UI.Controls.Catalog
         if (bmp != null)
         {
             cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+        }
+        else
+        {
+            // 3. Dynamic Thumbnail Fallback via Reflection (Zero direct assembly dependencies)
+            try
+            {
+                var game = GameFacade.Game;
+                if (game != null)
+                {
+                    // Locate VM dynamically across loaded domain assemblies
+                    var vmProp = game.GetType().GetProperty("VM") ?? game.GetType().GetProperty("ActiveVM");
+                    var vm = vmProp?.GetValue(game);
+
+                    if (vm != null)
+                    {
+                        var contextProp = vm.GetType().GetProperty("Context");
+                        var context = contextProp?.GetValue(vm);
+
+                        if (context != null)
+                        {
+                            // Resolve LotTilePos.OUT_OF_WORLD and Direction.SOUTH dynamically
+                            var simAnticsAsm = AppDomain.CurrentDomain.GetAssemblies()
+                                .FirstOrDefault(a => a.GetName().Name == "FSO.SimAntics");
+
+                            if (simAnticsAsm != null)
+                            {
+                                var tilePosType = simAnticsAsm.GetType("FSO.SimAntics.Engine.Scopes.LotTilePos")
+                                               ?? simAnticsAsm.GetType("FSO.SimAntics.Model.LotTilePos")
+                                               ?? simAnticsAsm.GetType("FSO.SimAntics.LotTilePos");
+
+                                var dirType = simAnticsAsm.GetType("FSO.SimAntics.Engine.Scopes.Direction")
+                                           ?? simAnticsAsm.GetType("FSO.SimAntics.Model.Direction")
+                                           ?? simAnticsAsm.GetType("FSO.SimAntics.Direction");
+
+                                var outOfWorld = tilePosType?.GetField("OUT_OF_WORLD")?.GetValue(null)
+                                              ?? Activator.CreateInstance(tilePosType, -1, -1, (sbyte)0);
+                                var southDir = dirType != null ? Enum.ToObject(dirType, 0) : null;
+
+                                var createObjMethod = context.GetType().GetMethod("CreateObjectInstance",
+                                    new[] { typeof(uint), tilePosType, dirType, typeof(bool) });
+
+                                var createdObj = createObjMethod?.Invoke(context, new[] { GUID, outOfWorld, southDir, true });
+
+                                if (createdObj != null)
+                                {
+                                    var multiGroupProp = createdObj.GetType().GetProperty("MultitileGroup");
+                                    var multiGroup = multiGroupProp?.GetValue(createdObj);
+
+                                    if (multiGroup != null)
+                                    {
+                                        // Handle Objects property vs method cleanly
+                                        var objectsMember = multiGroup.GetType().GetProperty("Objects")?.GetValue(multiGroup)
+                                                         ?? multiGroup.GetType().GetMethod("Objects")?.Invoke(multiGroup, null);
+
+                                        var enumerableObjects = objectsMember as System.Collections.IEnumerable;
+                                        if (enumerableObjects != null)
+                                        {
+                                            var objList = enumerableObjects.Cast<object>().ToList();
+                                            var objComps = Array.CreateInstance(
+                                                AppDomain.CurrentDomain.GetAssemblies()
+                                                    .Select(a => a.GetType("FSO.LotView.Components.ObjectComponent"))
+                                                    .FirstOrDefault(t => t != null) ?? typeof(object),
+                                                objList.Count
+                                            );
+
+                                            for (int i = 0; i < objList.Count; i++)
+                                            {
+                                                var worldUi = objList[i].GetType().GetProperty("WorldUI")?.GetValue(objList[i]);
+                                                objComps.SetValue(worldUi, i);
+                                            }
+
+                                            var basePos = multiGroup.GetType().GetMethod("GetBasePositions")?.Invoke(multiGroup, null);
+
+                                            var worldType = AppDomain.CurrentDomain.GetAssemblies()
+                                                .Select(a => a.GetType("FSO.LotView.World"))
+                                                .FirstOrDefault(t => t != null);
+
+                                            var getThumbMethod = worldType?.GetMethod("GetObjectThumb");
+
+                                            if (getThumbMethod != null)
+                                            {
+                                                cachedIcon = (Texture2D)getThumbMethod.Invoke(null, new[] { objComps, basePos, GameFacade.GraphicsDevice });
+                                            }
+                                        }
+                                    }
+
+                                    // Clean up temporary VM instance
+                                    var deleteObjMethod = createdObj.GetType().GetMethod("DeleteObject");
+                                    deleteObjMethod?.Invoke(createdObj, new[] { context });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to generate dynamic thumbnail for GUID {GUID:X8}: {ex.Message}");
+            }
         }
 
         IconCache[GUID] = cachedIcon;

@@ -437,14 +437,15 @@ namespace FSO.Client.UI.Controls.Catalog
 
                 Texture2D cachedIcon = null;
 
-                // 1. Check CatalogStringsID BMP
+                // 1. Local BMP lookup
                 var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
 
-                // 2. Fallback: Check BMP ID 1 (common default catalog BMP in IFF/FAR resources)
-                if (bmp == null) bmp = obj.Resource.Get<BMP>(1);
-
-                // 3. Fallback: Check BMP ID 0
-                if (bmp == null) bmp = obj.Resource.Get<BMP>(0);
+                // 2. SemiGlobal BMP lookup fallback
+                if (bmp == null && obj.Resource.SemiGlobal != null)
+                {
+                    bmp = obj.Resource.SemiGlobal.Get<BMP>(obj.OBJ.CatalogStringsID);
+                    if (bmp == null) bmp = obj.Resource.SemiGlobal.Get<BMP>(1);
+                }
 
                 if (bmp != null)
                 {
@@ -452,33 +453,30 @@ namespace FSO.Client.UI.Controls.Catalog
                 }
 		else
 		{
-			System.Console.WriteLine($"\n=================== [CATALOG ICON DEBUG] ===================");
+			System.Console.WriteLine($"\n=================== [SEMI-GLOBAL DEBUG] ===================");
     System.Console.WriteLine($"GUID: 0x{GUID:X8} | CatalogStringsID: {obj.OBJ.CatalogStringsID}");
 
-    // 1. Inspect chunks in Main IFF
-    if (obj.Resource.Iff != null)
+    if (obj.Resource.SemiGlobal != null)
     {
-        System.Console.WriteLine("Main IFF Chunks:");
-        var chunks = obj.Resource.Iff.SilentListAll();
-        foreach (var c in chunks)
-        {
-            System.Console.WriteLine($"  -> MainIFF Chunk Type: {c.GetType().Name} | ChunkID: {c.ChunkID}");
-        }
+        System.Console.WriteLine($"  -> SemiGlobal Present: {obj.Resource.SemiGlobal.GetType().Name}");
+
+        // Check for BMP in SemiGlobal by CatalogStringsID, ID 1, or list all BMPs in SemiGlobal
+        var sgBmp = obj.Resource.SemiGlobal.Get<BMP>(obj.OBJ.CatalogStringsID);
+        System.Console.WriteLine($"  -> SemiGlobal BMP (CatalogStringsID {obj.OBJ.CatalogStringsID}): {(sgBmp != null ? "FOUND" : "null")}");
+
+        var sgBmp1 = obj.Resource.SemiGlobal.Get<BMP>(1);
+        System.Console.WriteLine($"  -> SemiGlobal BMP (ID 1): {(sgBmp1 != null ? "FOUND" : "null")}");
+
+        var sgBmpList = obj.Resource.SemiGlobal.List<BMP>();
+        System.Console.WriteLine($"  -> Total BMP Chunks in SemiGlobal: {(sgBmpList != null ? sgBmpList.Count : 0)}");
+    }
+    else
+    {
+        System.Console.WriteLine("  -> SemiGlobal is NULL");
     }
 
-    // 2. Inspect chunks in Sprites IFF
-    if (obj.Resource.Sprites != null)
-    {
-        System.Console.WriteLine("Sprites IFF Chunks:");
-        var spriteChunks = obj.Resource.Sprites.SilentListAll();
-        foreach (var c in spriteChunks)
-        {
-            System.Console.WriteLine($"  -> SpritesIFF Chunk Type: {c.GetType().Name} | ChunkID: {c.ChunkID}");
-        }
-    }
-
-    System.Console.WriteLine($"==================================================================\n");
-		}
+    System.Console.WriteLine($"===========================================================\n");
+    		}
 
                 IconCache[GUID] = cachedIcon;
             }

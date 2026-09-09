@@ -428,39 +428,27 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
+
 	public Texture2D GetObjIcon(uint GUID)
-        {
-            if (GUID == 0) return null;
+	{
+	    if (GUID == 0) return null;
 
-            if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-            {
-                var obj = Content.Content.Get().WorldObjects.Get(GUID);
-                if (obj == null)
-                {
-                    IconCache[GUID] = null;
-                    return null;
-                }
+	    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
+	    {
+	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+	        if (obj == null)
+	        {
+	            IconCache[GUID] = null;
+	            return null;
+	        }
 
-                // Try CatalogStringsID first
-                var catID = obj.OBJ?.CatalogStringsID ?? 0;
-                BMP bmp = catID != 0 ? obj.Resource.Get<BMP>(catID) : null;
+	        // Delegate to VMGameObject.GetIcon, which handles MasterDefinition resolution
+	        cachedIcon = obj.GetIcon(GameFacade.GraphicsDevice, 0);
+	        IconCache[GUID] = cachedIcon;
+	    }
 
-                // Fallback to BaseGraphicID or default chunk 100 if CatalogStringsID failed
-                if (bmp == null)
-                {
-                    var graphicID = obj.OBJ?.BaseGraphicID ?? 100;
-                    bmp = obj.Resource.Get<BMP>(graphicID) ?? obj.Resource.Get<BMP>(100);
-                }
-
-                if (bmp != null)
-                {
-                    cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-                }
-
-                IconCache[GUID] = cachedIcon;
-            }
-            return IconCache[GUID];
-        }
+	    return cachedIcon;
+	}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

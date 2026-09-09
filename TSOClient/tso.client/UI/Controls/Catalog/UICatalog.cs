@@ -408,10 +408,7 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-		elem.Icon = (elem.Info.Special?.Res != null)
-                    ? (elem.Info.Special.Res.GetThumb(elem.Info.Special.ResID) ?? elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID))
-                    : GetObjIcon(elem.Info.Item.GUID);
-
+                elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;
                 elem.Y = (i / halfPage) * 45 + 2;
@@ -428,48 +425,21 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-
-	public Texture2D GetObjIcon(uint GUID)
-	{
-	    if (GUID == 0) return null;
-
-	    if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
-	    {
-	        var obj = Content.Content.Get().WorldObjects.Get(GUID);
-	        if (obj == null || obj.OBJ == null)
-	        {
-	            IconCache[GUID] = null;
-	            return null;
-	        }
-
-	        var def = obj.OBJ;
-
-	        // 1. Check primary catalog strings BMP chunk
-	        var bmpID = (ushort)def.CatalogStringsID;
-	        BMP bmp = bmpID != 0 ? obj.Resource.Get<BMP>(bmpID) : null;
-
-	        // 2. Check store variant offset (e.g., +2000)
-	        if (bmp == null && bmpID != 0)
-	        {
-	            bmp = obj.Resource.Get<BMP>((ushort)(bmpID + 2000));
-	        }
-
-	        // 3. Fallback to BaseGraphicID if CatalogStringsID is zero or missing
-	        if (bmp == null && def.BaseGraphicID != 0)
-	        {
-	            bmp = obj.Resource.Get<BMP>(def.BaseGraphicID) ?? obj.Resource.Get<BMP>(100);
-	        }
-
-	        if (bmp != null)
-	        {
-	            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-	        }
-
-	        IconCache[GUID] = cachedIcon;
-	    }
-
-	    return cachedIcon;
-	}
+        public Texture2D GetObjIcon(uint GUID)
+        {
+            if (!IconCache.ContainsKey(GUID)) {
+                var obj = Content.Content.Get().WorldObjects.Get(GUID);
+                if (obj == null)
+                {
+                    IconCache[GUID] = null;
+                    return null;
+                }
+                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
+                else IconCache[GUID] = null;
+            }
+            return IconCache[GUID];
+        }
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

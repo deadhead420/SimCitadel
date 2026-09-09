@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using FSO.Content;
 using FSO.LotView.Components;
@@ -310,25 +310,12 @@ namespace FSO.SimAntics
 
         // End Container SLOTs interface
 
-	public override Texture2D GetIcon(GraphicsDevice gd, int store)
-	{
-	    var def = MasterDefinition ?? Object?.OBJ;
-	    if (def == null) return null;
-
-	    // Check primary catalog thumbnail ID offset
-	    var bmpID = (ushort)(def.CatalogStringsID + store * 2000);
-	    var bmp = Object.Resource.Get<BMP>(bmpID);
-
-	    // Fallback: If primary chunk is 0/missing, check base graphic ID
-	    if (bmp == null && def.CatalogStringsID == 0)
-	    {
-	        bmp = Object.Resource.Get<BMP>(def.BaseGraphicID);
-	    }
-
-	    if (bmp != null) return bmp.GetTexture(gd);
-
-	    return null;
-	}
+        public override Texture2D GetIcon(GraphicsDevice gd, int store)
+        {
+            var bmp = Object.Resource.Get<BMP>((ushort)((MasterDefinition ?? Object.OBJ).CatalogStringsID + store * 2000));
+            if (bmp != null) return bmp.GetTexture(gd);
+            else return null;
+        }
 
         public override void PrePositionChange(VMContext context, bool roomChange)
         {

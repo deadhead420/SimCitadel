@@ -11,6 +11,9 @@ using FSO.SimAntics.Model;
 using FSO.Content.Interfaces;
 using FSO.Client.UI.Panels;
 using System.Text.RegularExpressions;
+using FSO.LotView;
+using FSO.LotView.Components;
+using FSO.SimAntics.Engine;
 
 namespace FSO.Client.UI.Controls.Catalog
 {
@@ -408,23 +411,6 @@ namespace FSO.Client.UI.Controls.Catalog
                     elem.Info.CalcPrice = finalPrice;
                 }
 
-		if (elem.Info.Item.GUID == 0x84E0774C || elem.Info.Item.GUID == 0x3C566968)
-{
-    System.Console.WriteLine($"\n=================== [CATALOG ELEM DEBUG] ===================");
-    System.Console.WriteLine($"GUID: 0x{elem.Info.Item.GUID:X8}");
-    System.Console.WriteLine($"  -> Special Present: {(elem.Info.Special != null)}");
-    if (elem.Info.Special != null)
-    {
-        System.Console.WriteLine($"  -> Special.Res Present: {(elem.Info.Special.Res != null)}");
-        System.Console.WriteLine($"  -> Special.ResID: {elem.Info.Special.ResID}");
-        if (elem.Info.Special.Res != null)
-        {
-            var spIcon = elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID);
-            System.Console.WriteLine($"  -> Special.Res.GetIcon Result: {(spIcon != null ? "SUCCESS" : "NULL")}");
-        }
-    }
-    System.Console.WriteLine($"============================================================\n");
-}
                 elem.Icon = (elem.Info.Special?.Res != null)?elem.Info.Special.Res.GetIcon(elem.Info.Special.ResID):GetObjIcon(elem.Info.Item.GUID);
                 elem.Tooltip = (elem.Info.CalcPrice > 0)?("$"+elem.Info.CalcPrice.ToString()):null;
                 elem.X = (i % halfPage) * 45 + 2;
@@ -443,62 +429,38 @@ namespace FSO.Client.UI.Controls.Catalog
         }
 
 	public Texture2D GetObjIcon(uint GUID)
+{
+    if (!IconCache.ContainsKey(GUID))
+    {
+        var obj = Content.Content.Get().WorldObjects.Get(GUID);
+        if (obj == null)
         {
-            if (!IconCache.ContainsKey(GUID)) {
-                var obj = Content.Content.Get().WorldObjects.Get(GUID);
-                if (obj == null)
-                {
-                    IconCache[GUID] = null;
-                    return null;
-                }
-
-                Texture2D cachedIcon = null;
-
-                // 1. Local BMP lookup
-                var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-
-                // 2. SemiGlobal BMP lookup fallback
-                if (bmp == null && obj.Resource.SemiGlobal != null)
-                {
-                    bmp = obj.Resource.SemiGlobal.Get<BMP>(obj.OBJ.CatalogStringsID);
-                    if (bmp == null) bmp = obj.Resource.SemiGlobal.Get<BMP>(1);
-                }
-
-                if (bmp != null)
-                {
-                    cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
-                }
-		else
-		{
-			System.Console.WriteLine($"\n=================== [SEMI-GLOBAL DEBUG] ===================");
-    System.Console.WriteLine($"GUID: 0x{GUID:X8} | CatalogStringsID: {obj.OBJ.CatalogStringsID}");
-
-    if (obj.Resource.SemiGlobal != null)
-    {
-        System.Console.WriteLine($"  -> SemiGlobal Present: {obj.Resource.SemiGlobal.GetType().Name}");
-
-        // Check for BMP in SemiGlobal by CatalogStringsID, ID 1, or list all BMPs in SemiGlobal
-        var sgBmp = obj.Resource.SemiGlobal.Get<BMP>(obj.OBJ.CatalogStringsID);
-        System.Console.WriteLine($"  -> SemiGlobal BMP (CatalogStringsID {obj.OBJ.CatalogStringsID}): {(sgBmp != null ? "FOUND" : "null")}");
-
-        var sgBmp1 = obj.Resource.SemiGlobal.Get<BMP>(1);
-        System.Console.WriteLine($"  -> SemiGlobal BMP (ID 1): {(sgBmp1 != null ? "FOUND" : "null")}");
-
-        var sgBmpList = obj.Resource.SemiGlobal.List<BMP>();
-        System.Console.WriteLine($"  -> Total BMP Chunks in SemiGlobal: {(sgBmpList != null ? sgBmpList.Count : 0)}");
-    }
-    else
-    {
-        System.Console.WriteLine("  -> SemiGlobal is NULL");
-    }
-
-    System.Console.WriteLine($"===========================================================\n");
-    		}
-
-                IconCache[GUID] = cachedIcon;
-            }
-            return IconCache[GUID];
+            IconCache[GUID] = null;
+            return null;
         }
+
+        Texture2D cachedIcon = null;
+
+        // 1. Local BMP lookup
+        var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
+
+        // 2. SemiGlobal BMP lookup fallback
+        if (bmp == null && obj.Resource.SemiGlobal != null)
+        {
+            bmp = obj.Resource.SemiGlobal.Get<BMP>(obj.OBJ.CatalogStringsID);
+            if (bmp == null) bmp = obj.Resource.SemiGlobal.Get<BMP>(1);
+        }
+
+        if (bmp != null)
+        {
+            cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+        }
+
+        IconCache[GUID] = cachedIcon;
+    }
+
+    return IconCache[GUID];
+}
 
         private class CatalogSorter : IComparer<UICatalogElement>
         {

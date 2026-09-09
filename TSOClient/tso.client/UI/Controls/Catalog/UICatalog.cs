@@ -425,19 +425,54 @@ namespace FSO.Client.UI.Controls.Catalog
             if (OnSelectionChange != null) OnSelectionChange(((UICatalogItem)button).Index);
         }
 
-        public Texture2D GetObjIcon(uint GUID)
+	public Texture2D GetObjIcon(uint GUID)
         {
-            if (!IconCache.ContainsKey(GUID)) {
+            if (GUID == 0) return null;
+
+            if (!IconCache.TryGetValue(GUID, out Texture2D cachedIcon))
+            {
                 var obj = Content.Content.Get().WorldObjects.Get(GUID);
                 if (obj == null)
                 {
                     IconCache[GUID] = null;
                     return null;
                 }
+
+                // 1. Try static BMP chunk first
                 var bmp = obj.Resource.Get<BMP>(obj.OBJ.CatalogStringsID);
-                if (bmp != null) IconCache[GUID] = bmp.GetTexture(GameFacade.GraphicsDevice);
-                else IconCache[GUID] = null;
+                if (bmp != null)
+                {
+                    cachedIcon = bmp.GetTexture(GameFacade.GraphicsDevice);
+                }
+
+                // 2. Fallback for objects with missing static BMP chunks (Toilet, Balloons, Ceiling Fan)
+                if (cachedIcon == null && ActiveVM != null)
+                {
+                    try
+                    {
+                        var tempEntity = ActiveVM.Context.CreateObjectInstance(
+                            GUID,
+                            FSO.LotView.Model.LotTilePos.OUT_OF_WORLD,
+                            FSO.LotView.Model.Direction.SOUTH,
+                            true
+                        );
+
+                        if (tempEntity?.BaseObject != null)
+                        {
+                            cachedIcon = tempEntity.BaseObject.GetIcon(GameFacade.GraphicsDevice, 0);
+                        }
+
+                        tempEntity?.Delete(ActiveVM.Context);
+                    }
+                    catch
+                    {
+                        cachedIcon = null;
+                    }
+                }
+
+                IconCache[GUID] = cachedIcon;
             }
+
             return IconCache[GUID];
         }
 
